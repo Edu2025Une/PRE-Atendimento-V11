@@ -251,6 +251,36 @@ app.post('/api/tenants', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.patch('/api/tenants/:id/evolution-config', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { evolutionApiUrl, evolutionGlobalApiKey } = req.body as {
+    evolutionApiUrl?: string;
+    evolutionGlobalApiKey?: string;
+  };
+
+  const updates: Record<string, unknown> = {};
+  if (evolutionApiUrl !== undefined)      updates.evolution_api_url        = evolutionApiUrl || null;
+  if (evolutionGlobalApiKey !== undefined) updates.evolution_global_api_key = evolutionGlobalApiKey || null;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ success: false, error: 'Nenhum campo para atualizar.' });
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update(updates)
+      .eq('id', id)
+      .select('id, name, slug, active, created_at')
+      .single();
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Usuários (admin) ────────────────────────────────────────────────── */
 
 app.get('/api/users', requireAuth, requireAdmin, async (_req, res) => {
@@ -288,12 +318,13 @@ app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
 
 app.patch('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { role, name, active } = req.body as { role?: string; name?: string; active?: boolean };
+  const { role, name, active, tenantId } = req.body as { role?: string; name?: string; active?: boolean; tenantId?: string | null };
 
   const updates: Record<string, unknown> = {};
-  if (role !== undefined)   updates.role   = role;
-  if (name !== undefined)   updates.name   = name.trim();
-  if (active !== undefined) updates.active = active;
+  if (role !== undefined)     updates.role      = role;
+  if (name !== undefined)     updates.name      = name.trim();
+  if (active !== undefined)   updates.active    = active;
+  if (tenantId !== undefined) updates.tenant_id = tenantId ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ success: false, error: 'Nenhum campo para atualizar.' });

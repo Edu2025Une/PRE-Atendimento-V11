@@ -64,6 +64,7 @@ function UsersTab({ token }: { token: string }) {
   const [editUser, setEditUser] = useState<AppUser | null>(null);
   const [editRole, setEditRole] = useState<string>('user');
   const [editName, setEditName] = useState<string>('');
+  const [editTenantId, setEditTenantId] = useState<string>('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -112,6 +113,7 @@ function UsersTab({ token }: { token: string }) {
     setEditUser(u);
     setEditRole(u.role);
     setEditName(u.name);
+    setEditTenantId(u.tenant_id ?? '');
     setEditError('');
   }
 
@@ -159,6 +161,7 @@ function UsersTab({ token }: { token: string }) {
       const res = await apiUpdateUser(token, editUser.id, {
         name: editName.trim(),
         role: editRole,
+        tenantId: editTenantId || null,
       });
       if (res.success) {
         setEditUser(null);
@@ -430,6 +433,19 @@ function UsersTab({ token }: { token: string }) {
               >
                 <option value="user">user</option>
                 <option value="admin">admin</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-slate-300">Tenant</Label>
+              <select
+                value={editTenantId}
+                onChange={(e) => setEditTenantId(e.target.value)}
+                className="w-full rounded-md border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm focus:outline-none focus:border-green-500"
+              >
+                <option value="">— Nenhum —</option>
+                {tenants.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
               </select>
             </div>
             {editError && <p className="text-red-400 text-sm">{editError}</p>}
