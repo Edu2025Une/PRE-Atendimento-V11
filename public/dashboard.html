@@ -2522,6 +2522,56 @@
           </div>
 
         </div>
+
+        <!-- ── Evolution API (secção separada, isolada do EVO-GO) ── -->
+        <div class="card" style="margin-top:1rem">
+          <div class="card-header">
+            <div class="card-icon icon-purple">🔗</div>
+            <div>
+              <div class="card-title">Configuração da Evolution API</div>
+              <div class="card-desc">Credenciais exclusivas para a Evolution API</div>
+            </div>
+          </div>
+
+          <form id="form-evo-api-config" novalidate>
+            <label for="cfg-evo-url">EVOLUTION_API_URL</label>
+            <div class="field-wrap">
+              <input type="text" id="cfg-evo-url"
+                placeholder="https://sua-evolution-api.com"
+                autocomplete="off" autocorrect="off"
+                autocapitalize="none" spellcheck="false" />
+            </div>
+
+            <div style="height:0.9rem"></div>
+
+            <label for="cfg-evo-key">EVOLUTION_GLOBAL_API_KEY</label>
+            <div class="field-wrap">
+              <input type="password" id="cfg-evo-key"
+                placeholder="Chave global da Evolution API"
+                autocomplete="off" autocorrect="off"
+                autocapitalize="none" spellcheck="false" />
+            </div>
+
+            <div style="margin-top:1rem">
+              <button type="submit" class="btn" style="width:100%;background:linear-gradient(135deg,#7c3aed,#8b5cf6);box-shadow:0 4px 16px rgba(139,92,246,0.3)">
+                ✅ Salvar Evolution API
+              </button>
+            </div>
+          </form>
+
+          <div class="config-saved-badge" id="evo-api-saved-badge">
+            ✅ Configuração da Evolution API salva.
+          </div>
+
+          <div style="margin-top:1rem">
+            <div class="config-status" id="config-status-evo-url">
+              <span id="cfg-icon-evo-url">○</span> EVOLUTION_API_URL
+            </div>
+            <div class="config-status" id="config-status-evo-key">
+              <span id="cfg-icon-evo-key">○</span> EVOLUTION_GLOBAL_API_KEY
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ── LISTA ── -->
@@ -3026,6 +3076,57 @@
         } finally {
           btnTest.disabled = false;
         }
+      });
+    }
+
+    /* ── Evolution API config — isolada do EVO-GO ── */
+    const EVO_API_CFG_KEY = 'pa_evo_api_config';
+
+    function loadEvoApiConfig() {
+      try { return JSON.parse(localStorage.getItem(EVO_API_CFG_KEY) || 'null'); }
+      catch { return null; }
+    }
+
+    function updateEvoApiConfigUI() {
+      const cfg    = loadEvoApiConfig();
+      const hasUrl = !!(cfg?.evoApiUrl?.trim());
+      const hasKey = !!(cfg?.evoApiKey?.trim());
+
+      const statusUrl = document.getElementById('config-status-evo-url');
+      const statusKey = document.getElementById('config-status-evo-key');
+      if (statusUrl) {
+        statusUrl.className = 'config-status ' + (hasUrl ? 'ok' : 'nok');
+        document.getElementById('cfg-icon-evo-url').textContent = hasUrl ? '✓' : '✗';
+      }
+      if (statusKey) {
+        statusKey.className = 'config-status ' + (hasKey ? 'ok' : 'nok');
+        document.getElementById('cfg-icon-evo-key').textContent = hasKey ? '✓' : '✗';
+      }
+      if (cfg) {
+        const urlEl = document.getElementById('cfg-evo-url');
+        if (urlEl) urlEl.value = cfg.evoApiUrl || '';
+      }
+    }
+
+    const formEvoApi = document.getElementById('form-evo-api-config');
+    if (formEvoApi) {
+      formEvoApi.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const url = document.getElementById('cfg-evo-url').value.trim();
+        const key = document.getElementById('cfg-evo-key').value.trim();
+
+        let cleanUrl = url;
+        try { if (url) cleanUrl = new URL(url).origin; } catch { /* mantém */ }
+
+        localStorage.setItem(EVO_API_CFG_KEY, JSON.stringify({ evoApiUrl: cleanUrl || '', evoApiKey: key || '' }));
+
+        const badge = document.getElementById('evo-api-saved-badge');
+        if (badge) {
+          badge.classList.add('visible');
+          setTimeout(() => badge.classList.remove('visible'), 3500);
+        }
+
+        updateEvoApiConfigUI();
       });
     }
 
@@ -4170,6 +4271,7 @@
     initTheme();
     loadInstances();
     updateAdminConfigUI();
+    updateEvoApiConfigUI();
     if (_isAdmin) loadUsers();
   </script>
 </body>
