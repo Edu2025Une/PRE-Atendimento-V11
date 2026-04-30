@@ -116,6 +116,21 @@ export function apiCreateTenant(
   return apiFetch('POST', '/api/tenants', token, payload);
 }
 
+export function apiUpdateTenant(
+  token: string,
+  id: string,
+  payload: { active: boolean },
+): Promise<ApiResult<Tenant>> {
+  return apiFetch('PATCH', `/api/tenants/${id}`, token, payload);
+}
+
+export function apiDeleteTenant(
+  token: string,
+  id: string,
+): Promise<ApiResult<{ message: string }>> {
+  return apiFetch('DELETE', `/api/tenants/${id}`, token);
+}
+
 export function apiUpdateTenantEvolutionConfig(
   token: string,
   id: string,

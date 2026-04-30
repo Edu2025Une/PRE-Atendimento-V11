@@ -7,6 +7,8 @@ import {
   apiDeleteUser,
   apiListTenants,
   apiCreateTenant,
+  apiUpdateTenant,
+  apiDeleteTenant,
   apiUpdateTenantEvolutionConfig,
   AppUser,
   Tenant,
@@ -482,6 +484,7 @@ function TenantsTab({ token }: { token: string }) {
   const [tenantSlug, setTenantSlug] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-tenants', token],
@@ -489,6 +492,33 @@ function TenantsTab({ token }: { token: string }) {
   });
 
   const tenants: Tenant[] = data?.data ?? [];
+
+  const toggleActive = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      apiUpdateTenant(token, id, { active }),
+    onSuccess: (res) => {
+      if (res.success) {
+        setActionError('');
+        qc.invalidateQueries({ queryKey: ['admin-tenants'] });
+      } else {
+        setActionError(res.error ?? 'Falha ao atualizar status do tenant.');
+      }
+    },
+    onError: () => setActionError('Erro de rede ao atualizar tenant.'),
+  });
+
+  const deleteTenant = useMutation({
+    mutationFn: (id: string) => apiDeleteTenant(token, id),
+    onSuccess: (res) => {
+      if (res.success) {
+        setActionError('');
+        qc.invalidateQueries({ queryKey: ['admin-tenants'] });
+      } else {
+        setActionError(res.error ?? 'Falha ao excluir tenant.');
+      }
+    },
+    onError: () => setActionError('Erro de rede ao excluir tenant.'),
+  });
 
   function slugify(val: string) {
     return val
@@ -543,8 +573,14 @@ function TenantsTab({ token }: { token: string }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-4">
+      {actionError && (
+        <div className="bg-red-900/30 border border-red-800 rounded-md px-4 py-2 text-red-400 text-sm flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="ml-4 text-red-400 hover:text-red-200 text-lg leading-none">×</button>
+        </div>
+      )}
+      <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">
           {tenants.length} {tenants.length === 1 ? 'tenant' : 'tenants'}
         </p>
@@ -611,6 +647,7 @@ function TenantsTab({ token }: { token: string }) {
               <th className="text-left px-4 py-3 text-slate-400 font-medium">Slug</th>
               <th className="text-left px-4 py-3 text-slate-400 font-medium">Status</th>
               <th className="text-left px-4 py-3 text-slate-400 font-medium">Criado em</th>
+              <th className="text-right px-4 py-3 text-slate-400 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -633,11 +670,59 @@ function TenantsTab({ token }: { token: string }) {
                 <td className="px-4 py-3 text-slate-400 text-xs">
                   {new Date(t.created_at).toLocaleDateString('pt-BR')}
                 </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={toggleActive.isPending}
+                      className={
+                        t.active
+                          ? 'border-amber-700 text-amber-400 hover:bg-amber-900/20 text-xs h-7 px-2'
+                          : 'border-green-700 text-green-400 hover:bg-green-900/20 text-xs h-7 px-2'
+                      }
+                      onClick={() => toggleActive.mutate({ id: t.id, active: !t.active })}
+                    >
+                      {t.active ? 'Desativar' : 'Ativar'}
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={deleteTenant.isPending}
+                          className="border-red-800 text-red-400 hover:bg-red-900/20 text-xs h-7 px-2"
+                        >
+                          Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-slate-800 border-slate-700 text-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir tenant</AlertDialogTitle>
+                          <AlertDialogDescription className="text-slate-400">
+                            Tem certeza que deseja excluir <strong>{t.name}</strong>? Essa ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                            Cancelar
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-700 hover:bg-red-600 text-white"
+                            onClick={() => deleteTenant.mutate(t.id)}
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </td>
               </tr>
             ))}
             {tenants.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
                   Nenhum tenant encontrado.
                 </td>
               </tr>

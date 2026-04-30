@@ -251,6 +251,41 @@ app.post('/api/tenants', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.patch('/api/tenants/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { active } = req.body as { active?: boolean };
+  if (typeof active !== 'boolean') {
+    res.status(400).json({ success: false, error: 'Campo "active" (boolean) é obrigatório.' });
+    return;
+  }
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update({ active })
+      .eq('id', id)
+      .select('id, name, slug, active, created_at')
+      .single();
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+app.delete('/api/tenants/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabaseAdmin
+      .from('tenants')
+      .delete()
+      .eq('id', id);
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data: { message: 'Tenant excluído com sucesso.' } });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 app.patch('/api/tenants/:id/evolution-config', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { evolutionApiUrl, evolutionGlobalApiKey } = req.body as {
