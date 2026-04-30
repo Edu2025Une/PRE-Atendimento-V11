@@ -43,7 +43,7 @@ export default function LoginPage() {
     try {
       const res = await apiRegister(name, email, password);
       if (res.success) {
-        setMessage('Conta criada! Aguarde a aprovação do administrador para acessar.');
+        setMessage('Conta criada com sucesso! Agora faça login com suas credenciais.');
       } else {
         setError(res.error ?? 'Erro ao criar conta.');
       }
