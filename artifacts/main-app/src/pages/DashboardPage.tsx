@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { useLocation } from 'wouter';
 import { useInstances, apiCreateInstance, Instance } from '@workspace/api-client-react';
 import { useAuthContext } from '@/context/AuthContext';
 import InstanceCard from '@/components/instances/InstanceCard';
@@ -11,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function DashboardPage() {
   const { user, token, logout } = useAuthContext();
   const { instances, loading, error, refresh } = useInstances(token);
+  const [, navigate] = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -64,6 +66,16 @@ export default function DashboardPage() {
             {user?.name} <span className="text-slate-600">·</span>{' '}
             <span className="capitalize">{user?.role}</span>
           </span>
+          {user?.role === 'admin' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-purple-700 text-purple-400 hover:bg-purple-900/20 text-xs"
+              onClick={() => navigate('/admin')}
+            >
+              Admin
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
