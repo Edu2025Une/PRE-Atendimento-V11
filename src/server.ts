@@ -21,6 +21,7 @@ import {
   pairInstance,
 } from './services/evolutionGo.js';
 import { supabaseAdmin } from './services/supabase.js';
+import { createInstanceEvolutionApi } from './services/evolutionApi.js';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from './services/authService.js';
 
 dotenv.config();
@@ -733,6 +734,20 @@ app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, re
     const isTimeout = (err as Error).name === 'AbortError';
     res.status(502).json({ success: false, error: isTimeout ? 'Tempo limite esgotado (10s).' : `Falha de rede: ${(err as Error).message}` });
   }
+});
+
+/* ── Evolution API — criar instância ─────────────────────────────────
+   Usa exclusivamente EVOLUTION_API_URL + EVOLUTION_GLOBAL_API_KEY.
+   Completamente isolado do EVO-GO.
+*/
+app.post('/api/evo-api/instance/create', requireAuth, async (req: Request, res: Response) => {
+  const { instanceName, token } = req.body as { instanceName?: string; token?: string };
+  if (!instanceName?.trim()) {
+    res.status(400).json({ success: false, error: 'instanceName é obrigatório.' });
+    return;
+  }
+  const result = await createInstanceEvolutionApi(instanceName.trim(), token?.trim());
+  res.status(result.success ? 200 : 502).json(result);
 });
 
 async function start() {
