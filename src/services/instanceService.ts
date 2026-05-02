@@ -6,7 +6,6 @@ import {
   logoutInstance    as callLogout,
   deleteInstance    as callDelete,
 } from './evolutionGo.js';
-import { createInstanceEvolutionApi } from './evolutionApi.js';
 
 /* Extrai o token da instância da resposta do /instance/create. */
 function extractInstanceToken(data: unknown): string {
@@ -166,100 +165,6 @@ export async function createInstanceAndPersist(
       instance_token:   instanceToken || null,
       create_response:  createResult.data,
       connect_response: connectResult?.data ?? null,
-    },
-  };
-}
-
-/* ── Criar e persistir instância via Evolution-API ─────────────────── */
-export async function createEvolutionApiInstanceAndPersist(
-  instanceName: string,
-  tenantId:     string,
-  createdBy:    string,
-  evolutionUrl: string,
-  apiKey:       string,
-) {
-  /* 1. Verificar duplicata no tenant */
-  const { data: existing } = await supabaseAdmin
-    .from('instances')
-    .select('id, instance_name, status')
-    .eq('instance_name', instanceName)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
-
-  if (existing) {
-    return {
-      success: false,
-      error: `Instância "${instanceName}" já existe com status "${existing.status}".`,
-    };
-  }
-
-  /* 2. Chamar Evolution-API PRIMEIRO */
-  console.log('[instanceService/evo] ▶ Criando instância na Evolution-API');
-  const createResult = await createInstanceEvolutionApi(instanceName, undefined, evolutionUrl, apiKey);
-
-  if (!createResult.success) {
-    console.error(`[instanceService/evo] ✖ API recusou criar "${instanceName}": ${createResult.error}`);
-    return {
-      success:    false,
-      error:      createResult.error || 'A Evolution-API rejeitou a criação da instância.',
-      httpStatus: createResult.httpStatus,
-    };
-  }
-
-  /* 3. Extrair token da resposta (formato Evolution-API) */
-  const d = createResult.data as Record<string, unknown> | null;
-  const instData = (d?.instance as Record<string, unknown>) || (d?.data as Record<string, unknown>) || d || {};
-  const instanceToken = String(
-    (d?.hash as Record<string, unknown>)?.apikey ||
-    instData.token || instData.apikey || ''
-  );
-
-  /* 4. Persistir no banco */
-  const { data: record, error: insertError } = await supabaseAdmin
-    .from('instances')
-    .insert({
-      instance_name: instanceName,
-      status:        'active',
-      provider:      'evolution-api',
-      tenant_id:     tenantId,
-      created_by:    createdBy,
-      metadata: {
-        provider: 'evolution-api',
-        evolution_url: evolutionUrl,
-        create: createResult.data ?? null,
-      },
-    })
-    .select()
-    .single();
-
-  if (insertError || !record) {
-    console.error('[instanceService/evo] ✖ Erro ao persistir:', insertError?.message);
-    return {
-      success: true,
-      data: {
-        instance_name:   instanceName,
-        status:          'active',
-        tenant_id:       tenantId,
-        instance_token:  instanceToken || null,
-        create_response: createResult.data,
-      },
-      warning: 'Instância criada na API mas não foi possível salvar localmente: ' + (insertError?.message || ''),
-    };
-  }
-
-  await supabaseAdmin.from('instance_logs').insert({
-    instance_id: record.id,
-    event:   'created',
-    payload: { provider: 'evolution-api', create: createResult.data },
-  });
-
-  return {
-    success: true,
-    data: {
-      ...record,
-      status:          'active',
-      instance_token:  instanceToken || null,
-      create_response: createResult.data,
     },
   };
 }

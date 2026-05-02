@@ -964,49 +964,6 @@
       margin-bottom: 0.5rem;
     }
 
-    /* ── Sub-tabs Criar Instância ── */
-    .api-tabs {
-      display: flex;
-      gap: 0.4rem;
-      margin-bottom: 1.25rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 0.28rem;
-    }
-    .api-tab {
-      flex: 1;
-      padding: 0.52rem 0.75rem;
-      border: none;
-      border-radius: 9px;
-      background: transparent;
-      color: var(--tx3);
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.18s, color 0.18s;
-      text-align: center;
-    }
-    .api-tab.active {
-      background: var(--surface);
-      color: var(--tx1);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-    }
-    .api-tab:hover:not(.active) { color: var(--tx2); }
-    .api-tab-logo {
-      display: block;
-      height: 22px;
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
-      margin: 0 auto;
-      opacity: 0.55;
-      transition: opacity 0.18s;
-    }
-    #tab-evogo.active .api-tab-logo,
-    #tab-evogo:hover .api-tab-logo,
-    #tab-evolution.active .api-tab-logo,
-    #tab-evolution:hover .api-tab-logo { opacity: 1; }
 
     .token-row {
       display: flex;
@@ -2438,15 +2395,6 @@
             </div>
           </div>
 
-          <!-- Sub-tabs: escolha do provedor -->
-          <div class="api-tabs">
-            <button class="api-tab active" id="tab-evogo"
-              onclick="switchCreateTab('evogo')"><img src="/evogo-logo.png" class="api-tab-logo" alt="Evo-Go"></button>
-            <button class="api-tab" id="tab-evolution"
-              onclick="switchCreateTab('evolution')"><img src="/evolution-api-logo.png" class="api-tab-logo" alt="Evolution-API"></button>
-          </div>
-
-          <!-- ── Pane 1: Evo-Go (original, inalterado) ── -->
           <div id="create-pane-evogo">
             <form id="form-instance" novalidate>
 
@@ -2515,84 +2463,6 @@
             <div class="alert" id="result-instance"></div>
           </div>
 
-          <!-- ── Pane 2: Evolution-API ── -->
-          <div id="create-pane-evolution" style="display:none">
-            <form id="form-evolution" novalidate>
-
-              <div class="fields-row">
-                <div>
-                  <label for="evo-instance-name">Nome da Instância <span style="color:#ef4444">*</span></label>
-                  <div class="field-wrap">
-                    <input type="text" id="evo-instance-name"
-                      placeholder="ex: minha-loja-01"
-                      autocomplete="off" autocorrect="off"
-                      autocapitalize="none" spellcheck="false" required />
-                    <span class="field-dot" id="evo-dot-name"></span>
-                  </div>
-                </div>
-                <div>
-                  <label for="evo-api-url">URL da API Evolution <span style="color:#ef4444">*</span></label>
-                  <div class="field-wrap">
-                    <input type="text" id="evo-api-url"
-                      placeholder="https://api.suaevo.com"
-                      autocomplete="off" autocorrect="off"
-                      autocapitalize="none" spellcheck="false" required />
-                    <span class="field-dot" id="evo-dot-url"></span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="fields-row">
-                <div>
-                  <label for="evo-api-key">GLOBAL_API_KEY <span style="color:#ef4444">*</span></label>
-                  <div class="field-wrap">
-                    <input type="password" id="evo-api-key"
-                      placeholder="Chave global da API"
-                      autocomplete="off" spellcheck="false" required />
-                    <span class="field-dot" id="evo-dot-key"></span>
-                  </div>
-                </div>
-                <div id="evo-tenant-field" style="display:none">
-                  <label for="evo-tenant-id">Tenant / Empresa</label>
-                  <div class="field-wrap">
-                    <input type="text" id="evo-tenant-id"
-                      placeholder="ID do tenant"
-                      autocomplete="off" spellcheck="false" />
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" class="btn" id="btn-evolution" disabled>
-                Criar via Evolution-API
-              </button>
-            </form>
-
-            <!-- Bloco de resultado (Evolution-API) -->
-            <div class="token-block" id="evo-token-block">
-              <div class="token-block-title">✅ Instância criada com sucesso</div>
-              <div class="token-row">
-                <span class="token-label">Instância</span>
-                <span class="token-value" id="evo-tk-name">—</span>
-              </div>
-              <div class="token-row">
-                <span class="token-label">Token</span>
-                <span class="token-value" id="evo-tk-token">—</span>
-                <button class="token-copy" onclick="copyEvoToken()">Copiar</button>
-              </div>
-              <div class="token-row">
-                <span class="token-label">Provedor</span>
-                <span class="token-value">Evolution-API</span>
-              </div>
-
-              <!-- Resposta completa da API -->
-              <details class="raw-resp-details" id="evo-raw-details" style="display:none;margin-top:0.9rem">
-                <summary>🔍 Resposta completa da API</summary>
-                <pre class="raw-resp-pre" id="evo-raw-pre"></pre>
-              </details>
-            </div>
-
-            <div class="alert" id="result-evolution"></div>
-          </div>
 
         </div>
       </div>
@@ -2653,54 +2523,6 @@
 
         </div>
 
-        <!-- ── Evolution API (secção separada, isolada do EVO-GO) ── -->
-        <div class="card" style="margin-top:1rem">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Configuração da Evolution API</div>
-              <div class="card-desc">Credenciais exclusivas para a Evolution API</div>
-            </div>
-          </div>
-
-          <form id="form-evo-api-config" novalidate>
-            <label for="cfg-evo-url">EVOLUTION_API_URL</label>
-            <div class="field-wrap">
-              <input type="text" id="cfg-evo-url"
-                placeholder="https://sua-evolution-api.com"
-                autocomplete="off" autocorrect="off"
-                autocapitalize="none" spellcheck="false" />
-            </div>
-
-            <div style="height:0.9rem"></div>
-
-            <label for="cfg-evo-key">EVOLUTION_GLOBAL_API_KEY</label>
-            <div class="field-wrap">
-              <input type="password" id="cfg-evo-key"
-                placeholder="Chave global da Evolution API"
-                autocomplete="off" autocorrect="off"
-                autocapitalize="none" spellcheck="false" />
-            </div>
-
-            <div style="margin-top:1rem">
-              <button type="submit" class="btn" style="width:100%;background:linear-gradient(135deg,#25D366,#1ebe5d);box-shadow:0 4px 16px rgba(37,211,102,0.3)">
-                ✅ Salvar Evolution API
-              </button>
-            </div>
-          </form>
-
-          <div class="config-saved-badge" id="evo-api-saved-badge">
-            ✅ Configuração da Evolution API salva.
-          </div>
-
-          <div style="margin-top:1rem">
-            <div class="config-status" id="config-status-evo-url">
-              <span id="cfg-icon-evo-url">○</span> EVOLUTION_API_URL
-            </div>
-            <div class="config-status" id="config-status-evo-key">
-              <span id="cfg-icon-evo-key">○</span> EVOLUTION_GLOBAL_API_KEY
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ── LISTA ── -->
@@ -3195,56 +3017,6 @@
       });
     }
 
-    /* ── Evolution API config — isolada do EVO-GO ── */
-    const EVO_API_CFG_KEY = 'pa_evo_api_config';
-
-    function loadEvoApiConfig() {
-      try { return JSON.parse(localStorage.getItem(EVO_API_CFG_KEY) || 'null'); }
-      catch { return null; }
-    }
-
-    function updateEvoApiConfigUI() {
-      const cfg    = loadEvoApiConfig();
-      const hasUrl = !!(cfg?.evoApiUrl?.trim());
-      const hasKey = !!(cfg?.evoApiKey?.trim());
-
-      const statusUrl = document.getElementById('config-status-evo-url');
-      const statusKey = document.getElementById('config-status-evo-key');
-      if (statusUrl) {
-        statusUrl.className = 'config-status ' + (hasUrl ? 'ok' : 'nok');
-        document.getElementById('cfg-icon-evo-url').textContent = hasUrl ? '✓' : '✗';
-      }
-      if (statusKey) {
-        statusKey.className = 'config-status ' + (hasKey ? 'ok' : 'nok');
-        document.getElementById('cfg-icon-evo-key').textContent = hasKey ? '✓' : '✗';
-      }
-      if (cfg) {
-        const urlEl = document.getElementById('cfg-evo-url');
-        if (urlEl) urlEl.value = cfg.evoApiUrl || '';
-      }
-    }
-
-    const formEvoApi = document.getElementById('form-evo-api-config');
-    if (formEvoApi) {
-      formEvoApi.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const url = document.getElementById('cfg-evo-url').value.trim();
-        const key = document.getElementById('cfg-evo-key').value.trim();
-
-        let cleanUrl = url;
-        try { if (url) cleanUrl = new URL(url).origin; } catch { /* mantém */ }
-
-        localStorage.setItem(EVO_API_CFG_KEY, JSON.stringify({ evoApiUrl: cleanUrl || '', evoApiKey: key || '' }));
-
-        const badge = document.getElementById('evo-api-saved-badge');
-        if (badge) {
-          badge.classList.add('visible');
-          setTimeout(() => badge.classList.remove('visible'), 3500);
-        }
-
-        updateEvoApiConfigUI();
-      });
-    }
 
     /* ─── VALIDAÇÃO INLINE ─── */
     function isInstFormValid() {
@@ -3270,132 +3042,6 @@
       }).catch(() => {});
     }
 
-    /* ─── SUB-TABS: CRIAR INSTÂNCIA ─── */
-    function switchCreateTab(tab) {
-      document.getElementById('create-pane-evogo').style.display    = tab === 'evogo'     ? '' : 'none';
-      document.getElementById('create-pane-evolution').style.display = tab === 'evolution' ? '' : 'none';
-      document.getElementById('tab-evogo').classList.toggle('active',    tab === 'evogo');
-      document.getElementById('tab-evolution').classList.toggle('active', tab === 'evolution');
-      if (tab === 'evolution') {
-        const isAdmin = _currentUser?.role === 'admin';
-        document.getElementById('evo-tenant-field').style.display = isAdmin ? '' : 'none';
-      }
-    }
-
-    /* ─── EVOLUTION-API: VALIDAÇÃO ─── */
-    function isEvoFormValid() {
-      const name = document.getElementById('evo-instance-name').value.trim();
-      const url  = document.getElementById('evo-api-url').value.trim();
-      const key  = document.getElementById('evo-api-key').value.trim();
-      return !!(name && url && key);
-    }
-
-    function onEvoFieldInput() {
-      const name = document.getElementById('evo-instance-name').value.trim();
-      const url  = document.getElementById('evo-api-url').value.trim();
-      const key  = document.getElementById('evo-api-key').value.trim();
-      document.getElementById('evo-dot-name').className = 'field-dot ' + (name ? 'ok' : 'nok');
-      document.getElementById('evo-dot-url').className  = 'field-dot ' + (url  ? 'ok' : 'nok');
-      document.getElementById('evo-dot-key').className  = 'field-dot ' + (key  ? 'ok' : 'nok');
-      document.getElementById('btn-evolution').disabled = !isEvoFormValid();
-    }
-
-    document.getElementById('evo-instance-name').addEventListener('input', onEvoFieldInput);
-    document.getElementById('evo-api-url').addEventListener('input', onEvoFieldInput);
-    document.getElementById('evo-api-key').addEventListener('input', onEvoFieldInput);
-
-    /* ─── EVOLUTION-API: COPY TOKEN ─── */
-    function copyEvoToken() {
-      const token = document.getElementById('evo-tk-token').textContent;
-      if (!token || token === '—') return;
-      navigator.clipboard.writeText(token).then(() => {
-        const btn = document.querySelector('#evo-token-block .token-copy');
-        btn.textContent = 'Copiado!';
-        setTimeout(() => { btn.textContent = 'Copiar'; }, 2000);
-      }).catch(() => {});
-    }
-
-    /* ─── EVOLUTION-API: FORM SUBMIT ─── */
-    document.getElementById('form-evolution').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const instanceName = document.getElementById('evo-instance-name').value.trim();
-      const evolutionUrl = document.getElementById('evo-api-url').value.trim();
-      const apiKey       = document.getElementById('evo-api-key').value.trim();
-      const tenantId     = document.getElementById('evo-tenant-id')?.value?.trim() || undefined;
-      const btn          = document.getElementById('btn-evolution');
-      const alertEl      = document.getElementById('result-evolution');
-
-      if (!instanceName || !evolutionUrl || !apiKey) {
-        alertEl.className = 'alert error';
-        alertEl.textContent = '❌ Preencha todos os campos obrigatórios.';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Criando...';
-      alertEl.className = 'alert';
-      document.getElementById('evo-token-block').classList.remove('visible');
-
-      try {
-        const body = { instanceName, evolutionUrl, apiKey };
-        if (tenantId) body.tenantId = tenantId;
-
-        const res  = await fetch('/api/instances/evolution', {
-          method:  'POST',
-          headers: getAuthHeaders(),
-          body:    JSON.stringify(body),
-        });
-        const json = await res.json();
-
-        console.group('[PRE-Atendimento] Resposta criação Evolution-API');
-        console.log('HTTP status :', res.status);
-        console.log('json        :', json);
-        console.groupEnd();
-
-        if (json.success) {
-          const data       = json.data || {};
-          const createResp = data.create_response || {};
-          const instData   = createResp.instance || createResp.data || createResp || {};
-          const hashData   = createResp.hash || {};
-
-          document.getElementById('evo-tk-name').textContent =
-            instData.instanceName || instData.name || data.instance_name || instanceName;
-
-          document.getElementById('evo-tk-token').textContent =
-            data.instance_token || hashData.apikey || instData.token || instData.apikey || '(não retornado pela API)';
-
-          const rawEl  = document.getElementById('evo-raw-details');
-          const rawPre = document.getElementById('evo-raw-pre');
-          if (rawEl && rawPre) {
-            rawEl.style.display = '';
-            rawPre.textContent  = JSON.stringify(createResp, null, 2);
-          }
-
-          const tb = document.getElementById('evo-token-block');
-          tb.classList.remove('warn');
-          tb.classList.add('visible');
-          tb.querySelector('.token-block-title').textContent = '✅ Instância criada com sucesso';
-          document.getElementById('evo-instance-name').value = '';
-          onEvoFieldInput();
-          tb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-          await loadInstances();
-        } else {
-          alertEl.className = 'alert error';
-          alertEl.innerHTML =
-            `❌ <strong>${json.error || 'Erro desconhecido'}</strong>` +
-            `<pre>${JSON.stringify(json, null, 2)}</pre>`;
-          alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      } catch (err) {
-        alertEl.className = 'alert error';
-        alertEl.textContent = `❌ Erro de conexão: ${err.message}`;
-      } finally {
-        btn.disabled = !isEvoFormValid();
-        btn.textContent = 'Criar via Evolution-API';
-      }
-    });
 
     /* ─── CRIAR INSTÂNCIA (EVO-GO) ─── */
     document.getElementById('form-instance').addEventListener('submit', async (e) => {
@@ -3780,10 +3426,7 @@
               <div class="inst-card-status">
                 <span class="inst-card-status-label">Provider</span>
                 <span class="inst-card-status-value">${
-                  (() => {
-                    const p = inst.provider || (inst.metadata?.provider === 'evolution-api' ? 'evolution-api' : 'evo-go');
-                    return p === 'evolution-api' ? 'Evolution-API' : 'Evo-Go';
-                  })()
+                  'Evo-Go'
                 }</span>
               </div>
               ${cardFooter}
@@ -4524,7 +4167,6 @@
     initTheme();
     loadInstances();
     updateAdminConfigUI();
-    updateEvoApiConfigUI();
     if (_isAdmin) loadUsers();
   </script>
 </body>

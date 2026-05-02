@@ -7,7 +7,6 @@ import jwt from 'jsonwebtoken';
 import { runMigrations } from './db/migrate.js';
 import {
   createInstanceAndPersist,
-  createEvolutionApiInstanceAndPersist,
   listInstances,
   disconnectInstanceService,
   logoutInstanceService,
@@ -23,7 +22,6 @@ import {
   getProfilePicture,
 } from './services/evolutionGo.js';
 import { supabaseAdmin } from './services/supabase.js';
-import { createInstanceEvolutionApi } from './services/evolutionApi.js';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from './services/authService.js';
 
 dotenv.config();
@@ -287,35 +285,6 @@ app.delete('/api/tenants/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/tenants/:id/evolution-config', requireAuth, requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { evolutionApiUrl, evolutionGlobalApiKey } = req.body as {
-    evolutionApiUrl?: string;
-    evolutionGlobalApiKey?: string;
-  };
-
-  const updates: Record<string, unknown> = {};
-  if (evolutionApiUrl !== undefined)      updates.evolution_api_url        = evolutionApiUrl || null;
-  if (evolutionGlobalApiKey !== undefined) updates.evolution_global_api_key = evolutionGlobalApiKey || null;
-
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ success: false, error: 'Nenhum campo para atualizar.' });
-    return;
-  }
-
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('tenants')
-      .update(updates)
-      .eq('id', id)
-      .select('id, name, slug, active, created_at')
-      .single();
-    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
-    res.json({ success: true, data });
-  } catch (err: unknown) {
-    res.status(500).json({ success: false, error: (err as Error).message });
-  }
-});
 
 /* ── Usuários (admin) ────────────────────────────────────────────────── */
 
@@ -398,49 +367,6 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-/* ── Criar instância via Evolution-API ────────────────────────────────── */
-app.post('/api/instances/evolution', requireAuth, async (req, res) => {
-  const { instanceName, evolutionUrl, apiKey, tenantId } = req.body as {
-    instanceName?: string;
-    evolutionUrl?: string;
-    apiKey?:       string;
-    tenantId?:     string;
-  };
-
-  if (!instanceName || typeof instanceName !== 'string' || instanceName.trim() === '') {
-    res.status(400).json({ success: false, error: 'instanceName é obrigatório.' });
-    return;
-  }
-  if (!evolutionUrl || typeof evolutionUrl !== 'string' || evolutionUrl.trim() === '') {
-    res.status(400).json({ success: false, error: 'URL da API Evolution é obrigatória.' });
-    return;
-  }
-  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-    res.status(400).json({ success: false, error: 'API Key é obrigatória.' });
-    return;
-  }
-
-  const user = req.user!;
-  const effectiveTenantId = (user.role === 'admin' && tenantId) ? tenantId : (user.tenantId || tenantId || '');
-
-  if (!effectiveTenantId) {
-    res.status(400).json({ success: false, error: 'Tenant não identificado. Faça login novamente.' });
-    return;
-  }
-
-  try {
-    const result = await createEvolutionApiInstanceAndPersist(
-      instanceName.trim(),
-      effectiveTenantId,
-      user.userId,
-      evolutionUrl.trim(),
-      apiKey.trim(),
-    );
-    res.status(result.success ? 201 : (result.error?.includes('já existe') ? 409 : 502)).json(result);
-  } catch (err: unknown) {
-    res.status(500).json({ success: false, error: (err as Error).message });
-  }
-});
 
 /* ── Criar instância ─────────────────────────────────────────────────── */
 app.post('/api/instances', requireAuth, async (req, res) => {
@@ -880,19 +806,6 @@ app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, re
   }
 });
 
-/* ── Evolution API — criar instância ─────────────────────────────────
-   Usa exclusivamente EVOLUTION_API_URL + EVOLUTION_GLOBAL_API_KEY.
-   Completamente isolado do EVO-GO.
-*/
-app.post('/api/evo-api/instance/create', requireAuth, async (req: Request, res: Response) => {
-  const { instanceName, token } = req.body as { instanceName?: string; token?: string };
-  if (!instanceName?.trim()) {
-    res.status(400).json({ success: false, error: 'instanceName é obrigatório.' });
-    return;
-  }
-  const result = await createInstanceEvolutionApi(instanceName.trim(), token?.trim());
-  res.status(result.success ? 200 : 502).json(result);
-});
 
 async function start() {
   try {
