@@ -2333,7 +2333,6 @@
     </div>
 
     <div class="sidebar-footer">
-      <div class="sidebar-config-status admin-only" id="sidebar-cfg-status">○ API não configurada</div>
       <button class="sidebar-logout" onclick="logout()">
         <span>🚪</span> Sair
       </button>
@@ -2380,7 +2379,6 @@
       </button>
     </nav>
 
-    <div class="drawer-cfg-status admin-only" id="drawer-cfg-status">○ Usando config padrão</div>
 
     <div class="drawer-footer">
       <button class="drawer-logout" onclick="logout()">
@@ -3115,17 +3113,6 @@
         document.getElementById('cfg-icon-key').textContent = hasKey ? '✓' : '✗';
       }
 
-      const cfgLabel = (hasUrl && hasKey) ? '✓ API personalizada' : '○ Usando config padrão';
-      const cfgCls   = (hasUrl && hasKey) ? 'ok' : 'nok';
-
-      if (sideStatus) {
-        sideStatus.className = 'sidebar-config-status ' + cfgCls;
-        sideStatus.textContent = cfgLabel;
-      }
-      if (drawerStatus) {
-        drawerStatus.className = 'drawer-cfg-status ' + cfgCls;
-        drawerStatus.textContent = cfgLabel;
-      }
 
       if (cfg) {
         document.getElementById('cfg-url').value = cfg.evolutionUrl || '';
