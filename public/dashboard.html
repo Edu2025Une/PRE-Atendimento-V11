@@ -1101,7 +1101,16 @@
     }
     .inst-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); border-color: #d1d5db; }
 
-    .inst-card-header  { padding: 1rem 1rem 0.65rem; }
+    .inst-card-header  { padding: 1rem 1rem 0.65rem; display: flex; align-items: center; gap: 0.75rem; }
+    .inst-card-header-info { flex: 1; min-width: 0; }
+    .inst-card-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(37,211,102,0.12); color: #25D366;
+      font-weight: 700; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; overflow: hidden; user-select: none;
+    }
+    .inst-card-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
     .inst-card-title-row {
       display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
     }
@@ -1920,6 +1929,7 @@
       background: var(--bg); border-color: var(--border2); box-shadow: none;
     }
     [data-theme="dark"] .inst-card:hover { border-color: var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    [data-theme="dark"] .inst-card-avatar        { background: rgba(37,211,102,0.15); color: #25D366; }
     [data-theme="dark"] .inst-card-name         { color: var(--tx1); }
     [data-theme="dark"] .inst-card-subtitle      { color: var(--tx5); }
     [data-theme="dark"] .inst-card-divider       { border-color: var(--border2); }
@@ -3753,14 +3763,18 @@
                 </div>
               </div>`;
 
+          const avatarInitial = inst.instance_name.charAt(0).toUpperCase();
           return `
             <div class="inst-card${orphan ? ' orphan' : ''}" id="inst-${CSS.escape(inst.instance_name)}">
               <div class="inst-card-header">
-                <div class="inst-card-title-row">
-                  <div class="inst-card-name">${inst.instance_name}</div>
-                  ${cardBadge}
+                <div class="inst-card-avatar" id="avatar-${inst.instance_name}">${avatarInitial}</div>
+                <div class="inst-card-header-info">
+                  <div class="inst-card-title-row">
+                    <div class="inst-card-name">${inst.instance_name}</div>
+                    ${cardBadge}
+                  </div>
+                  <div class="inst-card-subtitle">${inst.instance_name}</div>
                 </div>
-                <div class="inst-card-subtitle">${inst.instance_name}</div>
               </div>
               <hr class="inst-card-divider">
               <div class="inst-card-status">
@@ -3794,9 +3808,27 @@
         const r = await fetch(`/api/instances/${encodeURIComponent(name)}/status`, { headers: getAuthHeaders() });
         const j = await r.json();
         _applyStatusBadge(name, j.connected === true);
+        if (j.connected === true) _fetchProfilePicture(name);
       } catch {
         _applyStatusBadge(name, false);
       }
+    }
+
+    /* Busca a foto de perfil da instância e injeta no avatar do card */
+    async function _fetchProfilePicture(name) {
+      try {
+        const r = await fetch(`/api/instances/${encodeURIComponent(name)}/picture`, { headers: getAuthHeaders() });
+        const j = await r.json();
+        if (!j.pictureUrl) return;
+        const avatarEl = document.getElementById(`avatar-${name}`);
+        if (!avatarEl) return;
+        const img = new Image();
+        img.alt   = name;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
+        img.onload = () => { avatarEl.textContent = ''; avatarEl.appendChild(img); };
+        img.onerror = () => { /* mantém inicial */ };
+        img.src = j.pictureUrl;
+      } catch { /* mantém fallback */ }
     }
 
     const _SVG_CONNECT    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>`;

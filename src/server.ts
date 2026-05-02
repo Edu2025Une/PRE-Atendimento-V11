@@ -20,6 +20,7 @@ import {
   getInstanceStatus,
   getAllInstances,
   pairInstance,
+  getProfilePicture,
 } from './services/evolutionGo.js';
 import { supabaseAdmin } from './services/supabase.js';
 import { createInstanceEvolutionApi } from './services/evolutionApi.js';
@@ -622,6 +623,39 @@ app.get('/api/instances/:name/status', requireAuth, async (req, res) => {
     res.json({ success: true, connected: false, running: false, dbStatus: currentDbStatus });
   } catch (err: unknown) {
     res.status(500).json({ success: false, connected: false, error: (err as Error).message });
+  }
+});
+
+/* ── Foto de perfil da instância ─────────────────────────────────────── */
+app.get('/api/instances/:name/picture', requireAuth, async (req, res) => {
+  const { name } = req.params;
+  const user     = req.user!;
+  const isAdmin  = user.role === 'admin';
+  try {
+    let q = supabaseAdmin.from('instances').select('metadata').eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) q = q.eq('tenant_id', user.tenantId);
+      q = q.eq('created_by', user.userId);
+    }
+    const { data: inst } = await q.maybeSingle();
+    if (!inst) return res.status(404).json({ success: false, error: 'Instância não encontrada.' });
+
+    const meta          = inst.metadata as Record<string, unknown>;
+    const instanceToken = extractInstanceToken(meta);
+    if (!instanceToken) return res.json({ success: true, pictureUrl: null });
+
+    const result = await getProfilePicture(instanceToken);
+    if (result.success && result.data) {
+      const d     = result.data as Record<string, unknown>;
+      const inner = (d.data as Record<string, unknown>) || {};
+      const url   =
+        inner.picture         || inner.profilePictureUrl || inner.profilePicUrl || inner.avatar ||
+        d.picture             || d.profilePictureUrl     || d.profilePicUrl     || d.avatar;
+      return res.json({ success: true, pictureUrl: (url as string) || null });
+    }
+    res.json({ success: true, pictureUrl: null });
+  } catch {
+    res.json({ success: true, pictureUrl: null });
   }
 });
 
