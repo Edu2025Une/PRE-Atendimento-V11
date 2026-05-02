@@ -993,6 +993,18 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.18);
     }
     .api-tab:hover:not(.active) { color: var(--tx2); }
+    .api-tab-logo {
+      display: block;
+      height: 22px;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      margin: 0 auto;
+      opacity: 0.55;
+      transition: opacity 0.18s;
+    }
+    #tab-evolution.active .api-tab-logo,
+    #tab-evolution:hover .api-tab-logo { opacity: 1; }
 
     .token-row {
       display: flex;
@@ -2439,7 +2451,7 @@
             <button class="api-tab active" id="tab-evogo"
               onclick="switchCreateTab('evogo')">⚡ Evo-Go</button>
             <button class="api-tab" id="tab-evolution"
-              onclick="switchCreateTab('evolution')">🔗 Evolution-API</button>
+              onclick="switchCreateTab('evolution')"><img src="/evolution-api-logo.png" class="api-tab-logo" alt="Evolution-API"></button>
           </div>
 
           <!-- ── Pane 1: Evo-Go (original, inalterado) ── -->
