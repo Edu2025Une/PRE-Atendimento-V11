@@ -1748,6 +1748,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 0.85rem;
+      padding: 0 1rem;
     }
     @media (max-width: 480px) { .monitor-grid { grid-template-columns: 1fr; } }
 
@@ -4374,12 +4375,24 @@
           grid.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="empty-icon">📭</div>Nenhuma instância encontrada.</div>`;
         } else {
           grid.innerHTML = visible.map(inst => {
-            const prev  = _monitorFails[inst.name] || 0;
-            const fails = inst.connected ? 0 : prev + 1;
-            _monitorFails[inst.name] = fails;
-            const state = inst.connected ? 'healthy' : 'failure';
-            const label = inst.connected ? 'Healthy' : 'Failure';
+            const apiStatus = inst.status || (inst.connected ? 'connected' : 'disconnected');
+            /* estado visual: healthy / failure / unknown */
+            let state, label;
+            if (apiStatus === 'connected') {
+              state = 'healthy'; label = 'Healthy';
+              _monitorFails[inst.name] = 0;
+            } else if (apiStatus === 'error') {
+              state = 'unknown'; label = 'Indisponível';
+              _monitorFails[inst.name] = Math.min(99, (_monitorFails[inst.name] || 0) + 1);
+            } else {
+              state = 'failure'; label = 'Failure';
+              _monitorFails[inst.name] = Math.min(99, (_monitorFails[inst.name] || 0) + 1);
+            }
+            const fails = _monitorFails[inst.name];
             const t     = j.checkedAt ? new Date(j.checkedAt).toLocaleTimeString('pt-BR') : '—';
+            const failRow = fails > 0
+              ? `<div class="monitor-meta-row">⚠️ Falhas consecutivas: ${fails}</div>`
+              : `<div class="monitor-meta-row" style="color:var(--tx3)">✅ Sem falhas</div>`;
             return `
               <div class="monitor-card ${state}">
                 <div class="monitor-card-top">
@@ -4390,7 +4403,7 @@
                 </div>
                 <div class="monitor-meta">
                   <div class="monitor-meta-row">🕐 Último check: ${t}</div>
-                  <div class="monitor-meta-row">❌ Falhas recentes: ${fails}</div>
+                  ${failRow}
                 </div>
               </div>`;
           }).join('');

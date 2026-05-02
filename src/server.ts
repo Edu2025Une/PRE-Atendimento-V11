@@ -841,15 +841,16 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
           const st    = await getInstanceStatus(token);
           const d     = (st.data as Record<string, unknown>) || {};
           const inner = (d.data as Record<string, unknown>) || {};
-          return { name, connected: inner.LoggedIn === true, orphan: false, checkedAt };
+          const loggedIn = inner.LoggedIn === true;
+          return { name, connected: loggedIn, status: loggedIn ? 'connected' : 'disconnected', orphan: false, checkedAt };
         } catch {
-          return { name, connected: false, orphan: false, checkedAt };
+          return { name, connected: false, status: 'error', orphan: false, checkedAt };
         }
       }),
     );
     const data = settled.map(r => r.status === 'fulfilled'
       ? r.value
-      : { name: '?', connected: false, orphan: false, checkedAt });
+      : { name: '?', connected: false, status: 'error', orphan: false, checkedAt });
     res.json({ success: true, data, checkedAt });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
