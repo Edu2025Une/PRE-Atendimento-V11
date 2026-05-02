@@ -79,6 +79,9 @@
        MOBILE — layout em coluna única
        ════════════════════════════════ */
 
+    .topbar-spacer { height: 18px; }
+    @media (min-width: 520px) { .topbar-spacer { display: none; } }
+
     /* ─── TOPBAR (mobile only) ─── */
     .topbar {
       position: sticky;
@@ -2378,6 +2381,7 @@
        ══════════════════════════ -->
   <div class="content-area">
 
+    <div class="topbar-spacer"></div>
     <!-- TOPBAR (mobile only) -->
     <nav class="topbar">
       <div class="topbar-brand">
