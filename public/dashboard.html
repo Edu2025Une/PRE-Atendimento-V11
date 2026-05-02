@@ -1722,6 +1722,14 @@
 
     .btn-refresh:active { border-color: #25D366; color: #25D366; }
 
+    .poll-countdown {
+      font-size: 0.72rem;
+      color: var(--tx4);
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     .empty-state {
       text-align: center;
       color: var(--tx5);
@@ -2560,6 +2568,7 @@
               placeholder="🔍 Buscar instâncias..."
               oninput="filterInstances(this.value)">
             <button class="btn-refresh" onclick="loadInstances(); const s=document.getElementById('inst-search'); if(s) s.value='';">↻ Atualizar</button>
+            <span class="poll-countdown" id="poll-countdown"></span>
           </div>
           <div class="inst-grid" id="instances-list">
             <div class="empty-state"><div class="empty-icon">🔄</div>Carregando...</div>
@@ -3481,22 +3490,43 @@
     }
 
     /* Polling automático de status a cada 30s */
+    let _countdownTimer = null;
+    let _countdownSecs  = 30;
+
+    function _updateCountdownEl() {
+      const el = document.getElementById('poll-countdown');
+      if (el) el.textContent = _countdownSecs > 0 ? `Atualizando em ${_countdownSecs}s` : 'Atualizando…';
+    }
+
     function _pollAllStatuses() {
       _instances.forEach(inst => {
         const meta = inst.metadata || {};
         const isOrphan = !meta?.create?.data?.id && !meta?.data?.id;
         if (!isOrphan) _fetchLiveStatus(inst.instance_name);
       });
+      _countdownSecs = 30;
+      _updateCountdownEl();
     }
 
     function _startStatusPoll() {
       clearInterval(_statusPollTimer);
+      clearInterval(_countdownTimer);
+      _countdownSecs = 30;
+      _updateCountdownEl();
       _statusPollTimer = setInterval(_pollAllStatuses, 30000);
+      _countdownTimer  = setInterval(() => {
+        _countdownSecs = Math.max(0, _countdownSecs - 1);
+        _updateCountdownEl();
+      }, 1000);
     }
 
     function _stopStatusPoll() {
       clearInterval(_statusPollTimer);
+      clearInterval(_countdownTimer);
       _statusPollTimer = null;
+      _countdownTimer  = null;
+      const el = document.getElementById('poll-countdown');
+      if (el) el.textContent = '';
     }
 
     window.addEventListener('beforeunload', _stopStatusPoll);
