@@ -383,6 +383,12 @@ app.post('/api/instances', requireAuth, async (req, res) => {
     return;
   }
 
+  const INST_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+  if (!INST_NAME_RE.test(instanceName.trim())) {
+    res.status(400).json({ success: false, error: 'Nome inválido. Use apenas letras (a-z), números, hífen (-) e underscore (_).' });
+    return;
+  }
+
   const user = req.user!;
   /* Admin pode especificar um tenantId diferente; usuário comum usa o próprio */
   const effectiveTenantId = (user.role === 'admin' && tenantId) ? tenantId : (user.tenantId || tenantId || '');
