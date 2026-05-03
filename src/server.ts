@@ -208,13 +208,17 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return;
   }
   try {
-    const publicUrl  = process.env.PUBLIC_APP_URL?.replace(/\/$/, '') || (() => {
-      const protocol = (req.headers['x-forwarded-proto'] as string)?.split(',')[0].trim() || req.protocol || 'https';
-      const host     = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:5000';
-      return `${protocol}://${host}`;
-    })();
+    console.log(`[FORGOT PASSWORD] email: ${email}`);
+    const publicUrl =
+      process.env.PUBLIC_APP_URL?.replace(/\/$/, '') ||
+      (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null) ||
+      (() => {
+        const protocol = (req.headers['x-forwarded-proto'] as string)?.split(',')[0].trim() || req.protocol || 'https';
+        const host     = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:5000';
+        return `${protocol}://${host}`;
+      })();
     const redirectTo = `${publicUrl}/reset-password.html`;
-    console.log(`[auth] forgot-password → email="${email}" redirectTo="${redirectTo}"`);
+    console.log(`[auth] forgot-password → redirectTo="${redirectTo}"`);
     const result = await requestPasswordReset(email, redirectTo);
     console.log(`[auth] forgot-password → result: success=${result.success}${result.error ? ' error=' + result.error : ''}`);
     /* Sempre retornar 200 + mensagem genérica para não revelar se o e-mail existe */

@@ -1,0 +1,156 @@
+```text id="t1m0yq"
+Corrigir definitivamente o envio de e-mail da função "Esqueci minha senha" com validação real do Supabase + configuração obrigatória.
+
+PROBLEMA IDENTIFICADO:
+- Backend está chamando resetPasswordForEmail corretamente
+- Supabase está recebendo (prova: rate-limit nos logs)
+- E-mail NÃO chega → problema de configuração no Supabase (não é código)
+
+OBJETIVO:
+Garantir envio real do e-mail de reset de senha
+
+NÃO ALTERAR:
+- login
+- cadastro
+- dashboard
+- monitor
+- Evolution API
+- controle de instâncias
+- layout
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. BACKEND (CONFIRMAR CORRETO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Endpoint deve estar assim:
+
+POST /api/auth/forgot-password
+
+Código obrigatório:
+
+await supabaseAdmin.auth.resetPasswordForEmail(email, {
+  redirectTo: `${process.env.PUBLIC_APP_URL}/reset-password.html`
+});
+
+IMPORTANTE:
+- supabaseAdmin DEVE usar SUPABASE_SERVICE_ROLE_KEY
+- NÃO usar anon key no backend
+
+Adicionar log temporário:
+
+console.log("[FORGOT PASSWORD] email:", email);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. VARIÁVEL CRÍTICA (ERRO MAIS COMUM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Verificar no Replit:
+
+PUBLIC_APP_URL
+
+DEVE ser:
+
+https://SEU-PROJETO.replit.app
+
+NÃO pode ser:
+- localhost
+- vazio
+- undefined
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. CONFIGURAÇÃO OBRIGATÓRIA NO SUPABASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Abrir painel do :contentReference[oaicite:0]{index=0}
+
+Ir em:
+
+Authentication → URL Configuration
+
+Configurar EXATAMENTE:
+
+Site URL:
+https://SEU-PROJETO.replit.app
+
+Redirect URLs:
+https://SEU-PROJETO.replit.app/reset-password.html
+
+Se isso estiver errado:
+→ EMAIL NÃO CHEGA
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. SMTP (MOTIVO MAIS COMUM DE FALHA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ir em:
+
+Authentication → Email → SMTP Settings
+
+Situação atual:
+- Supabase default = LIMITADO
+
+AÇÃO RECOMENDADA:
+
+Configurar SMTP próprio:
+
+Exemplo Gmail:
+
+Host: smtp.gmail.com
+Port: 587
+User: seu_email@gmail.com
+Password: app password (NÃO senha normal)
+Sender name: Seu App
+Sender email: seu_email@gmail.com
+
+Sem SMTP:
+→ pode falhar silenciosamente
+→ pode cair em spam
+→ pode nem enviar
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. TEMPLATE (VALIDAR)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Authentication → Email Templates
+
+Verificar:
+
+Reset Password → ENABLED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. TESTE REAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Fazer POST manual:
+
+/api/auth/forgot-password
+
+Verificar:
+
+1. log backend aparece
+2. Supabase → Logs → Auth
+3. procurar evento de resetPasswordForEmail
+4. verificar inbox + spam
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. DIAGNÓSTICO FINAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Se:
+
+✔ backend loga chamada
+✔ Supabase loga request
+❌ e-mail não chega
+
+ENTÃO:
+→ problema 100% SMTP ou URL CONFIG
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESULTADO ESPERADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- E-mail de reset enviado corretamente
+- Link abre reset-password.html
+- Usuário redefine senha via Supabase
+- Fluxo completo funcional
+```
