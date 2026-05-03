@@ -4440,6 +4440,22 @@
       if (el) el.textContent = '';
     }
 
+    /* ── Ajuste 3: pausar/retomar polling quando tab perde ou ganha foco ── */
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        _stopMonitorPoll();
+        _stopStatusPoll();
+      } else {
+        if (document.getElementById('panel-monitor')?.classList.contains('active')) {
+          loadMonitor();
+          _startMonitorPoll();
+        }
+        if (document.getElementById('panel-list')?.classList.contains('active')) {
+          _startStatusPoll();
+        }
+      }
+    });
+
     /* ─── INIT ─── */
     initTheme();
     loadInstances();

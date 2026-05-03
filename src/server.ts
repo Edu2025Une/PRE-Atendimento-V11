@@ -829,29 +829,43 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
       res.json({ success: true, data: [], checkedAt });
       return;
     }
+    /* ── Ajuste 2: separar órfãos antes de chamar a Evolution API ── */
+    const hasId = (inst: Record<string, unknown>): boolean => {
+      const meta  = (inst.metadata as Record<string, unknown>) || {};
+      const newId = ((meta.create as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined)?.id;
+      const oldId = (meta.data as Record<string, unknown> | undefined)?.id;
+      return !!(newId || oldId);
+    };
+    const orphanData = instances
+      .filter(inst => !hasId(inst))
+      .map(inst => ({ name: inst.instance_name as string, connected: false, orphan: true, checkedAt }));
+    const nonOrphans = instances.filter(hasId);
+
+    /* ── Ajuste 1: timeout de 6s por instância via Promise.race ── */
     const settled = await Promise.allSettled(
-      instances.map(async (inst) => {
-        const name = inst.instance_name as string;
-        const meta = (inst.metadata as Record<string, unknown>) || {};
-        const newId = ((meta.create as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined)?.id;
-        const oldId = (meta.data as Record<string, unknown> | undefined)?.id;
-        if (!newId && !oldId) return { name, connected: false, orphan: true, checkedAt };
+      nonOrphans.map(async (inst) => {
+        const name  = inst.instance_name as string;
+        const meta  = (inst.metadata as Record<string, unknown>) || {};
         const token = extractInstanceToken(meta);
         try {
-          const st    = await getInstanceStatus(token);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => { const e = new Error('Monitor timeout'); e.name = 'AbortError'; reject(e); }, 6000)
+          );
+          const st    = await Promise.race([getInstanceStatus(token), timeoutPromise]);
           const d     = (st.data as Record<string, unknown>) || {};
           const inner = (d.data as Record<string, unknown>) || {};
           const loggedIn = inner.LoggedIn === true;
           return { name, connected: loggedIn, status: loggedIn ? 'connected' : 'disconnected', orphan: false, checkedAt };
-        } catch {
-          return { name, connected: false, status: 'error', orphan: false, checkedAt };
+        } catch (err: unknown) {
+          const isTimeout = (err as Error)?.name === 'AbortError';
+          return { name, connected: false, status: isTimeout ? 'failure' : 'error', orphan: false, checkedAt };
         }
       }),
     );
-    const data = settled.map(r => r.status === 'fulfilled'
+    const activeData = settled.map(r => r.status === 'fulfilled'
       ? r.value
-      : { name: '?', connected: false, status: 'error', orphan: false, checkedAt });
-    res.json({ success: true, data, checkedAt });
+      : { name: '?', connected: false, status: 'failure', orphan: false, checkedAt });
+    res.json({ success: true, data: [...orphanData, ...activeData], checkedAt });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
