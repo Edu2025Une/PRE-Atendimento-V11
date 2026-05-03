@@ -93,6 +93,23 @@ function extractInstanceToken(meta: Record<string, unknown>): string {
   return '';
 }
 
+/* ── Helper: resolve config Evolution GO por tenant ─────────────────── */
+async function getEvolutionConfig(tenantId: string): Promise<{ url: string; key: string }> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('tenants')
+      .select('evolution_api_url, evolution_global_api_key')
+      .eq('id', tenantId)
+      .maybeSingle();
+    return {
+      url: data?.evolution_api_url?.trim()          || process.env.EVOLUTION_API_URL || '',
+      key: data?.evolution_global_api_key?.trim()   || process.env.GLOBAL_API_KEY    || '',
+    };
+  } catch {
+    return { url: process.env.EVOLUTION_API_URL || '', key: process.env.GLOBAL_API_KEY || '' };
+  }
+}
+
 /* ── Express setup ──────────────────────────────────────────────────── */
 const app = express();
 app.use(cors());
@@ -866,6 +883,51 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
       ? r.value
       : { name: '?', connected: false, status: 'failure', orphan: false, checkedAt });
     res.json({ success: true, data: [...orphanData, ...activeData], checkedAt });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Admin: Ler config Evolution GO ─────────────────────────────────── */
+app.get('/api/admin/config/evolution', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { data } = await supabaseAdmin
+      .from('tenants')
+      .select('evolution_api_url, evolution_global_api_key')
+      .eq('id', req.user!.tenantId)
+      .maybeSingle();
+    res.json({
+      success:      true,
+      url:          data?.evolution_api_url?.trim()        || '',
+      keyConfigured: !!(data?.evolution_global_api_key?.trim()),
+    });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Admin: Salvar config Evolution GO ──────────────────────────────── */
+app.post('/api/admin/config/evolution', requireAuth, requireAdmin, async (req, res) => {
+  const { url, key } = req.body as { url?: string; key?: string };
+  const cleanUrl = url?.trim() || '';
+  if (!cleanUrl) {
+    res.status(400).json({ success: false, error: 'URL da API é obrigatória.' });
+    return;
+  }
+  try { new URL(cleanUrl); } catch {
+    res.status(400).json({ success: false, error: 'URL inválida. Informe uma URL completa (ex: https://evogo.exemplo.com).' });
+    return;
+  }
+  try {
+    const upd: Record<string, string> = { evolution_api_url: cleanUrl };
+    const cleanKey = key?.trim() || '';
+    if (cleanKey) upd.evolution_global_api_key = cleanKey;
+    const { error } = await supabaseAdmin
+      .from('tenants')
+      .update(upd)
+      .eq('id', req.user!.tenantId);
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }

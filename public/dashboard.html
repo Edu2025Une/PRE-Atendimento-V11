@@ -3053,6 +3053,8 @@
 
       if (panelId === 'panel-monitor') { loadMonitor(); _startMonitorPoll(); }
       else _stopMonitorPoll();
+
+      if (panelId === 'panel-config') loadEvolutionConfig();
     }
 
     /* ─── CONFIG ADMIN ─── */
@@ -3086,9 +3088,28 @@
       }
     }
 
+    /* ── Carrega config do banco e preenche o painel ── */
+    async function loadEvolutionConfig() {
+      if (!_isAdmin) return;
+      try {
+        const r = await fetch('/api/admin/config/evolution', { headers: getAuthHeaders() });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!j.success) return;
+        /* Atualiza cache local para getApiOverrides() funcionar sem nova request */
+        const existing = loadAdminConfig() || {};
+        localStorage.setItem(CFG_KEY, JSON.stringify({ ...existing, evolutionUrl: j.url || '' }));
+        const urlEl = document.getElementById('cfg-url');
+        if (urlEl && j.url) urlEl.value = j.url;
+        const keyEl = document.getElementById('cfg-key');
+        if (keyEl && j.keyConfigured && !keyEl.value) keyEl.placeholder = '••••••• (configurada)';
+        updateAdminConfigUI();
+      } catch { /* silencioso — não quebra o painel */ }
+    }
+
     const formConfig = document.getElementById('form-config');
     if (formConfig) {
-      formConfig.addEventListener('submit', (e) => {
+      formConfig.addEventListener('submit', async (e) => {
         e.preventDefault();
         const url = document.getElementById('cfg-url').value.trim();
         const key = document.getElementById('cfg-key').value.trim();
@@ -3096,13 +3117,34 @@
         let cleanUrl = url;
         try { if (url) cleanUrl = new URL(url).origin; } catch { /* mantém */ }
 
-        localStorage.setItem(CFG_KEY, JSON.stringify({ evolutionUrl: cleanUrl || '', apiKey: key || '' }));
+        const btn = document.getElementById('btn-save-config');
+        btn.disabled = true;
 
-        const badge = document.getElementById('config-saved-badge');
-        badge.classList.add('visible');
-        setTimeout(() => badge.classList.remove('visible'), 3500);
+        try {
+          const r = await fetch('/api/admin/config/evolution', {
+            method:  'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ url: cleanUrl || undefined, key: key || undefined }),
+          });
+          const j = await r.json();
 
-        updateAdminConfigUI();
+          if (j.success) {
+            /* Atualiza cache local para getApiOverrides() funcionar imediatamente */
+            localStorage.setItem(CFG_KEY, JSON.stringify({ evolutionUrl: cleanUrl || '', apiKey: key || '' }));
+            const badge = document.getElementById('config-saved-badge');
+            badge.classList.add('visible');
+            setTimeout(() => badge.classList.remove('visible'), 3500);
+            if (key) document.getElementById('cfg-key').value = '';
+            document.getElementById('cfg-key').placeholder = '••••••• (configurada)';
+            updateAdminConfigUI();
+          } else {
+            showToast(j.error || 'Erro ao salvar configuração.', false);
+          }
+        } catch {
+          showToast('Erro de rede ao salvar configuração.', false);
+        } finally {
+          btn.disabled = false;
+        }
       });
     }
 
