@@ -223,11 +223,16 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
 ];
 
 export async function runMigrations(): Promise<void> {
+  if (process.env.RUN_MIGRATIONS !== 'true') {
+    console.log('ℹ️  RUN_MIGRATIONS não habilitado — pulando migrations.');
+    return;
+  }
+
   const connectionString = process.env.SUPABASE_POSTGRES_URL;
 
   if (!connectionString) {
-    console.warn('⚠️  SUPABASE_POSTGRES_URL não definida — pulando migrations.');
-    return;
+    console.error('❌ FATAL: SUPABASE_POSTGRES_URL é obrigatória para rodar migrations. Encerrando aplicação.');
+    process.exit(1);
   }
 
   const client = new pg.Client({

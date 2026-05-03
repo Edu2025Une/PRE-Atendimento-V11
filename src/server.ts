@@ -112,7 +112,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 /* ── Config ─────────────────────────────────────────────────────────── */
 app.get('/api/config', (_req, res) => {
-  const supabaseUrl     = process.env.SUPABASE_DB_URL   || '';
+  const supabaseUrl     = process.env.SUPABASE_URL || '';
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
   const jwtConfigured   = true;
   const dbConfigured    = !!process.env.SUPABASE_POSTGRES_URL;
