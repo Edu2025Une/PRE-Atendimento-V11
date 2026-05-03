@@ -95,19 +95,28 @@ function extractInstanceToken(meta: Record<string, unknown>): string {
 
 /* ── Helper: resolve config Evolution GO por tenant ─────────────────── */
 async function getEvolutionConfig(tenantId: string): Promise<{ url: string; key: string }> {
-  try {
-    const { data } = await supabaseAdmin
-      .from('tenants')
-      .select('evolution_api_url, evolution_global_api_key')
-      .eq('id', tenantId)
-      .maybeSingle();
-    return {
-      url: data?.evolution_api_url?.trim()          || process.env.EVOLUTION_API_URL || '',
-      key: data?.evolution_global_api_key?.trim()   || process.env.GLOBAL_API_KEY    || '',
-    };
-  } catch {
-    return { url: process.env.EVOLUTION_API_URL || '', key: process.env.GLOBAL_API_KEY || '' };
+  const { data, error } = await supabaseAdmin
+    .from('tenants')
+    .select('evolution_api_url, evolution_global_api_key')
+    .eq('id', tenantId)
+    .maybeSingle();
+
+  const url = data?.evolution_api_url?.trim()        || '';
+  const key = data?.evolution_global_api_key?.trim() || '';
+
+  if (error || !url || !key) {
+    throw new Error('Tenant sem configuração da Evolution API.');
   }
+  return { url, key };
+}
+
+async function getInstanceTenant(name: string): Promise<string> {
+  const { data } = await supabaseAdmin
+    .from('instances')
+    .select('tenant_id')
+    .eq('instance_name', name)
+    .maybeSingle();
+  return (data?.tenant_id as string) || '';
 }
 
 /* ── Express setup ──────────────────────────────────────────────────── */
@@ -456,14 +465,18 @@ app.post('/api/instances', requireAuth, async (req, res) => {
     }
   }
 
+  let _evoCreate: { url: string; key: string };
+  try { _evoCreate = await getEvolutionConfig(effectiveTenantId); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+
   try {
     const result = await createInstanceAndPersist(
       instanceName.trim(),
       effectiveTenantId,
       user.userId,
-      token?.trim()        || undefined,
-      evolutionUrl?.trim() || undefined,
-      apiKey?.trim()       || undefined,
+      token?.trim() || undefined,
+      _evoCreate.url,
+      _evoCreate.key,
     );
     res.status(result.success ? 201 : (result.error?.includes('já existe') ? 409 : 502)).json(result);
   } catch (err: unknown) {
@@ -512,15 +525,19 @@ app.get('/api/instances/:name/qrcode', requireAuth, async (req, res) => {
   const { name }  = req.params;
   const user      = req.user!;
   const isAdmin   = user.role === 'admin';
-  const evolutionUrl  = (req.query.evolutionUrl  as string | undefined)?.trim() || undefined;
   let   instanceToken = (req.query.instanceToken as string | undefined)?.trim() || '';
 
   if (!instanceToken) {
     try { instanceToken = await fetchInstanceToken(name, user.tenantId, isAdmin, isAdmin ? undefined : user.userId); } catch { /* ok */ }
   }
 
+  const _qrTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _qrEvo: { url: string; key: string };
+  try { _qrEvo = await getEvolutionConfig(_qrTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+
   try {
-    const result = await getQrCode(instanceToken, evolutionUrl);
+    const result = await getQrCode(instanceToken, _qrEvo.url);
 
     const isPolling400 = !result.success &&
       result.httpStatus === 400 &&
@@ -553,7 +570,6 @@ app.get('/api/instances/:name/status', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const evolutionUrl  = (req.query.evolutionUrl  as string | undefined)?.trim() || undefined;
   let   instanceToken = (req.query.instanceToken as string | undefined)?.trim() || '';
 
   let currentDbStatus = '';
@@ -572,8 +588,13 @@ app.get('/api/instances/:name/status', requireAuth, async (req, res) => {
     currentDbStatus = inst?.status || '';
   } catch { /* continua */ }
 
+  const _stTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _stEvo: { url: string; key: string };
+  try { _stEvo = await getEvolutionConfig(_stTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+
   try {
-    const result = await getInstanceStatus(instanceToken, evolutionUrl);
+    const result = await getInstanceStatus(instanceToken, _stEvo.url);
 
     if (result.success && result.data) {
       const d        = result.data as Record<string, unknown>;
@@ -634,7 +655,11 @@ app.get('/api/instances/:name/picture', requireAuth, async (req, res) => {
     const instanceToken = extractInstanceToken(meta);
     if (!instanceToken) return res.json({ success: true, pictureUrl: null });
 
-    const result = await getProfilePicture(instanceToken);
+    const _picTid = await getInstanceTenant(name) || user.tenantId || '';
+    let _picEvoUrl: string | undefined;
+    try { const cfg = await getEvolutionConfig(_picTid); _picEvoUrl = cfg.url; } catch { _picEvoUrl = undefined; }
+
+    const result = await getProfilePicture(instanceToken, _picEvoUrl);
     if (result.success && result.data) {
       const d     = result.data as Record<string, unknown>;
       const inner = (d.data as Record<string, unknown>) || {};
@@ -654,8 +679,8 @@ app.post('/api/instances/:name/connect', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const { instanceToken, evolutionUrl, immediate, phone, subscribe, webhookUrl } = req.body as {
-    instanceToken?: string; evolutionUrl?: string; immediate?: boolean;
+  const { instanceToken, immediate, phone, subscribe, webhookUrl } = req.body as {
+    instanceToken?: string; immediate?: boolean;
     phone?: string; subscribe?: string[]; webhookUrl?: string;
   };
 
@@ -669,8 +694,13 @@ app.post('/api/instances/:name/connect', requireAuth, async (req, res) => {
     return;
   }
 
+  const _conTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _conEvo: { url: string; key: string };
+  try { _conEvo = await getEvolutionConfig(_conTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+
   try {
-    const result = await connectInstance(token, evolutionUrl?.trim() || undefined, { immediate, phone, subscribe, webhookUrl });
+    const result = await connectInstance(token, _conEvo.url, { immediate, phone, subscribe, webhookUrl });
     res.status(result.success ? 200 : (result.httpStatus || 502)).json(result);
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
@@ -682,11 +712,15 @@ app.post('/api/instances/:name/disconnect', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const { instanceToken, evolutionUrl } = req.body as { instanceToken?: string; evolutionUrl?: string };
+  const { instanceToken } = req.body as { instanceToken?: string };
+  const _disTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _disEvo: { url: string; key: string };
+  try { _disEvo = await getEvolutionConfig(_disTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
   try {
     const result = await disconnectInstanceService(
       name, user.tenantId, isAdmin,
-      instanceToken?.trim() || undefined, evolutionUrl?.trim() || undefined,
+      instanceToken?.trim() || undefined, _disEvo.url,
       isAdmin ? undefined : user.userId,
     );
     res.status(result.success ? 200 : 502).json(result);
@@ -700,11 +734,15 @@ app.delete('/api/instances/:name/logout', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const { instanceToken, evolutionUrl } = req.body as { instanceToken?: string; evolutionUrl?: string };
+  const { instanceToken: logoutToken } = req.body as { instanceToken?: string };
+  const _logTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _logEvo: { url: string; key: string };
+  try { _logEvo = await getEvolutionConfig(_logTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
   try {
     const result = await logoutInstanceService(
       name, user.tenantId, isAdmin,
-      instanceToken?.trim() || undefined, evolutionUrl?.trim() || undefined,
+      logoutToken?.trim() || undefined, _logEvo.url,
       isAdmin ? undefined : user.userId,
     );
     res.status(result.success ? 200 : 502).json(result);
@@ -718,8 +756,8 @@ app.post('/api/instances/:name/pair', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const { instanceToken, evolutionUrl, phone, subscribe } = req.body as {
-    instanceToken?: string; evolutionUrl?: string; phone?: string; subscribe?: string[];
+  const { instanceToken, phone, subscribe } = req.body as {
+    instanceToken?: string; phone?: string; subscribe?: string[];
   };
 
   let token = instanceToken?.trim() || '';
@@ -736,8 +774,13 @@ app.post('/api/instances/:name/pair', requireAuth, async (req, res) => {
     return;
   }
 
+  const _pairTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _pairEvo: { url: string; key: string };
+  try { _pairEvo = await getEvolutionConfig(_pairTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+
   try {
-    const result = await pairInstance(token, phone, subscribe, evolutionUrl?.trim() || undefined);
+    const result = await pairInstance(token, phone, subscribe, _pairEvo.url);
     res.status(result.success ? 200 : (result.httpStatus || 502)).json(result);
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
@@ -749,11 +792,14 @@ app.delete('/api/instances/:name', requireAuth, async (req, res) => {
   const { name } = req.params;
   const user     = req.user!;
   const isAdmin  = user.role === 'admin';
-  const { evolutionUrl, apiKey } = req.body as { evolutionUrl?: string; apiKey?: string };
+  const _delTid = await getInstanceTenant(name) || user.tenantId || '';
+  let _delEvo: { url: string; key: string };
+  try { _delEvo = await getEvolutionConfig(_delTid); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
   try {
     const result = await deleteInstanceService(
       name, user.tenantId, isAdmin,
-      evolutionUrl?.trim() || undefined, apiKey?.trim() || undefined,
+      _delEvo.url, _delEvo.key,
       isAdmin ? undefined : user.userId,
     );
     res.status(result.success ? 200 : 502).json(result);
@@ -831,10 +877,12 @@ app.patch('/api/instances/:name/owner', requireAuth, requireAdmin, async (req, r
 
 /* ── Admin: Listar instâncias na Evolution GO API ───────────────────── */
 app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
-  const evolutionUrl = (req.query.evolutionUrl as string | undefined)?.trim() || undefined;
-  const apiKey       = (req.query.apiKey       as string | undefined)?.trim() || undefined;
+  const tenantId = req.user!.tenantId || '';
+  let _adminEvo: { url: string; key: string };
+  try { _adminEvo = await getEvolutionConfig(tenantId); }
+  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
   try {
-    const result = await getAllInstances(evolutionUrl, apiKey);
+    const result = await getAllInstances(_adminEvo.url, _adminEvo.key);
     res.status(result.success ? 200 : (result.httpStatus || 502)).json(result);
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
@@ -902,14 +950,17 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
     /* ── Ajuste 1: timeout de 6s por instância via Promise.race ── */
     const settled = await Promise.allSettled(
       nonOrphans.map(async (inst) => {
-        const name  = inst.instance_name as string;
-        const meta  = (inst.metadata as Record<string, unknown>) || {};
-        const token = extractInstanceToken(meta);
+        const name     = inst.instance_name as string;
+        const meta     = (inst.metadata as Record<string, unknown>) || {};
+        const token    = extractInstanceToken(meta);
+        const tenantId = (inst.tenant_id as string) || '';
+        let _monEvoUrl: string | undefined;
+        try { const cfg = await getEvolutionConfig(tenantId); _monEvoUrl = cfg.url; } catch { _monEvoUrl = undefined; }
         try {
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => { const e = new Error('Monitor timeout'); e.name = 'AbortError'; reject(e); }, 6000)
           );
-          const st    = await Promise.race([getInstanceStatus(token), timeoutPromise]);
+          const st    = await Promise.race([getInstanceStatus(token, _monEvoUrl), timeoutPromise]);
           const d     = (st.data as Record<string, unknown>) || {};
           const inner = (d.data as Record<string, unknown>) || {};
           const loggedIn = inner.LoggedIn === true;
