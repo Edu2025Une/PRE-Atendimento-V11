@@ -2847,6 +2847,17 @@
                 <option value="admin">Administrador</option>
               </select>
             </div>
+            <div style="height:0.75rem"></div>
+            <label for="nu-max-instances">Limite de instâncias</label>
+            <div class="field-wrap">
+              <select id="nu-max-instances" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                <option value="1">1 instância</option>
+                <option value="2">2 instâncias</option>
+                <option value="3">3 instâncias</option>
+                <option value="4">4 instâncias</option>
+                <option value="5">5 instâncias</option>
+              </select>
+            </div>
             <div style="height:0.9rem"></div>
             <button type="submit" class="btn" id="btn-new-user"
               style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,0.3);width:100%">
@@ -4324,7 +4335,7 @@
               </div>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem;padding-left:2.6rem">
-              <span style="font-size:0.73rem;color:var(--tx3)">Tenant: ${tenant} · Desde ${since}</span>
+              <span style="font-size:0.73rem;color:var(--tx3)">Tenant: ${tenant} · Desde ${since}${!isAdmin ? ` · Limite: ${u.max_instances != null ? u.max_instances + (u.max_instances === 1 ? ' instância' : ' instâncias') : '—'}` : ''}</span>
               <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
                 ${!isMe ? `
                 <button onclick="toggleUserRole('${u.id}','${isAdmin ? 'user' : 'admin'}')"
@@ -4332,6 +4343,11 @@
                   onmouseover="this.style.background='${isAdmin ? 'rgba(239,68,68,0.1)' : 'rgba(37,211,102,0.1)'}'" onmouseout="this.style.background='transparent'">
                   ${isAdmin ? '↓ Rebaixar' : '↑ Promover'}
                 </button>
+                ${!isAdmin ? `<button onclick="setUserLimit('${u.id}', ${u.max_instances != null ? u.max_instances : 1})"
+                  style="padding:0.3rem 0.7rem;font-size:0.75rem;border-radius:0.5rem;border:1px solid rgba(148,163,184,0.4);background:transparent;color:#94a3b8;cursor:pointer;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='transparent'">
+                  ✏️ Limite
+                </button>` : ''}
                 <button onclick="deleteUser('${u.id}','${(u.name||'').replace(/'/g,'')}')"
                   style="padding:0.3rem 0.7rem;font-size:0.75rem;border-radius:0.5rem;border:1px solid rgba(239,68,68,0.35);background:transparent;color:#f87171;cursor:pointer;transition:all 0.15s"
                   onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
@@ -4344,6 +4360,39 @@
       } catch (err) {
         list.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Erro de conexão: ${err.message}</div>`;
       }
+    }
+
+    async function setUserLimit(userId, currentLimit) {
+      const opts = [1,2,3,4,5];
+      const optsHtml = opts.map(n =>
+        `<option value="${n}"${n === currentLimit ? ' selected' : ''}>${n} instância${n > 1 ? 's' : ''}</option>`
+      ).join('');
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<select id="_limit-sel" style="width:100%;padding:0.65rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.3);background:var(--card);color:var(--tx1);font-size:0.95rem;margin-top:0.5rem">${optsHtml}</select>`;
+      openModal({
+        icon:         '✏️',
+        title:        'Alterar Limite de Instâncias',
+        desc:         'Selecione o novo limite para este usuário:',
+        extraContent: wrap,
+        instanceName: '',
+        btnLabel:     'Salvar',
+        btnClass:     '',
+        onConfirm:    async () => {
+          const sel = document.getElementById('_limit-sel');
+          const newLimit = sel ? parseInt(sel.value, 10) : currentLimit;
+          try {
+            const res  = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+              method:  'PATCH',
+              headers: getAuthHeaders(),
+              body:    JSON.stringify({ maxInstances: newLimit }),
+            });
+            const json = await res.json();
+            if (res.status === 401) { handle401(json); return; }
+            if (json.success) { showToast(`✅ Limite alterado para ${newLimit} instância${newLimit > 1 ? 's' : ''}.`, 'ok'); loadUsers(); }
+            else showToast(`❌ ${json.error || 'Falha ao alterar limite.'}`, 'err');
+          } catch (err) { showToast(`❌ Erro: ${err.message}`, 'err'); }
+        },
+      });
     }
 
     async function toggleUserRole(userId, newRole) {
@@ -4394,10 +4443,11 @@
     document.getElementById('form-new-user')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       _nuAlert('', '');
-      const name     = document.getElementById('nu-name').value.trim();
-      const email    = document.getElementById('nu-email').value.trim();
-      const password = document.getElementById('nu-password').value;
-      const role     = document.getElementById('nu-role').value;
+      const name        = document.getElementById('nu-name').value.trim();
+      const email       = document.getElementById('nu-email').value.trim();
+      const password    = document.getElementById('nu-password').value;
+      const role        = document.getElementById('nu-role').value;
+      const maxInstances = parseInt(document.getElementById('nu-max-instances').value, 10);
 
       if (!name || !email || !password) {
         _nuAlert('Preencha todos os campos.', 'err');
@@ -4415,7 +4465,7 @@
         const res  = await fetch('/api/users', {
           method:  'POST',
           headers: getAuthHeaders(),
-          body:    JSON.stringify({ name, email, password, role }),
+          body:    JSON.stringify({ name, email, password, role, maxInstances }),
         });
         const json = await res.json();
         if (res.status === 401) { handle401(json); return; }

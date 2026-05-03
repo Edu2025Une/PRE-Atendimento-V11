@@ -220,6 +220,28 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_instances_provider ON public.instances (provider);
     `,
   },
+  /* ── 011: coluna max_instances em users ── */
+  {
+    name: '011_add_max_instances_to_users',
+    sql: `
+      ALTER TABLE public.users
+        ADD COLUMN IF NOT EXISTS max_instances INTEGER DEFAULT NULL;
+    `,
+  },
+  /* ── 012: enforce limite 1–5 e default 1 para usuários existentes ── */
+  {
+    name: '012_enforce_user_instance_limits',
+    sql: `
+      UPDATE public.users
+        SET max_instances = 1
+        WHERE max_instances IS NULL AND role = 'user';
+
+      DO $$ BEGIN
+        ALTER TABLE public.users
+          ADD CONSTRAINT chk_max_instances CHECK (max_instances BETWEEN 1 AND 5);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
 ];
 
 export async function runMigrations(): Promise<void> {

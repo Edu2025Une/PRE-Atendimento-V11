@@ -309,7 +309,7 @@ app.get('/api/users', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('users')
-      .select('id, name, email, role, active, tenant_id, created_at, tenants(name, slug)')
+      .select('id, name, email, role, active, tenant_id, created_at, max_instances, tenants(name, slug)')
       .order('created_at', { ascending: true });
     if (error) { res.status(500).json({ success: false, error: error.message }); return; }
     res.json({ success: true, data });
@@ -340,13 +340,22 @@ app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
 
 app.patch('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { role, name, active, tenantId } = req.body as { role?: string; name?: string; active?: boolean; tenantId?: string | null };
+  const { role, name, active, tenantId, maxInstances } = req.body as { role?: string; name?: string; active?: boolean; tenantId?: string | null; maxInstances?: number | null };
+
+  if (maxInstances !== undefined && maxInstances !== null) {
+    const v = Number(maxInstances);
+    if (!Number.isInteger(v) || v < 1 || v > 5) {
+      res.status(400).json({ success: false, error: 'Limite inválido. Use um número inteiro entre 1 e 5.' });
+      return;
+    }
+  }
 
   const updates: Record<string, unknown> = {};
-  if (role !== undefined)     updates.role      = role;
-  if (name !== undefined)     updates.name      = name.trim();
-  if (active !== undefined)   updates.active    = active;
-  if (tenantId !== undefined) updates.tenant_id = tenantId ?? null;
+  if (role !== undefined)         updates.role          = role;
+  if (name !== undefined)         updates.name          = name.trim();
+  if (active !== undefined)       updates.active        = active;
+  if (tenantId !== undefined)     updates.tenant_id     = tenantId ?? null;
+  if (maxInstances !== undefined) updates.max_instances = maxInstances ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ success: false, error: 'Nenhum campo para atualizar.' });
@@ -413,6 +422,26 @@ app.post('/api/instances', requireAuth, async (req, res) => {
   if (!effectiveTenantId) {
     res.status(400).json({ success: false, error: 'Tenant não identificado. Faça login novamente.' });
     return;
+  }
+
+  /* ── Verificar limite de instâncias (somente usuários comuns) ── */
+  if (user.role !== 'admin') {
+    const { data: userRecord } = await supabaseAdmin
+      .from('users')
+      .select('max_instances')
+      .eq('id', user.userId)
+      .maybeSingle();
+    const limit = userRecord?.max_instances ?? null;
+    if (limit !== null) {
+      const { count } = await supabaseAdmin
+        .from('instances')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.userId);
+      if ((count || 0) >= limit) {
+        res.status(403).json({ success: false, error: 'Limite de instâncias atingido. Peça ao administrador para aumentar seu limite.' });
+        return;
+      }
+    }
   }
 
   try {

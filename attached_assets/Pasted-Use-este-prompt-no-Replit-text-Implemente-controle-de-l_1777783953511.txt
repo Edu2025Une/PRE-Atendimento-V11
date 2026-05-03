@@ -1,0 +1,68 @@
+Use este prompt no Replit:
+
+```text
+Implemente controle de limite de instâncias por usuário, definido somente pelo Administrador.
+
+Regras:
+- Cada usuário comum deve ter um limite de instâncias entre 1 e 5.
+- O Administrador escolhe o limite no painel.
+- O Administrador nunca é bloqueado por limite.
+- Usuário comum não pode alterar o próprio limite.
+- Validação obrigatória no backend.
+- Frontend apenas exibe o erro retornado.
+- Não alterar layout geral.
+- Não remover funções existentes.
+- Não mexer em instanceService.ts nem evolutionGo.ts.
+
+Banco:
+- Usar a coluna public.users.max_instances.
+- Valor permitido: 1, 2, 3, 4 ou 5.
+- Para usuários existentes com NULL, definir padrão 1.
+- Adicionar constraint/check para impedir valores fora de 1 a 5, mantendo admin livre da checagem operacional.
+
+Backend:
+1. No POST /api/instances:
+   - Se req.user.role === 'admin', permitir criar sem limite.
+   - Se usuário comum:
+     - buscar users.max_instances do usuário logado.
+     - contar instances where created_by = user.userId.
+     - bloquear quando count >= max_instances.
+     - retornar HTTP 403:
+       { success: false, error: "Limite de instâncias atingido. Peça ao administrador para aumentar seu limite." }
+
+2. No GET /api/users:
+   - retornar max_instances.
+
+3. No PATCH /api/users/:id:
+   - somente requireAdmin.
+   - aceitar maxInstances.
+   - validar que maxInstances seja número inteiro entre 1 e 5.
+   - salvar em users.max_instances.
+   - rejeitar qualquer outro valor com HTTP 400.
+
+Frontend admin public/dashboard.html:
+- No formulário "Novo Usuário", trocar input livre por select:
+  Label: Limite de instâncias
+  Opções: 1, 2, 3, 4, 5
+  Default: 1
+
+- No card/lista de usuários exibir:
+  Limite: X instâncias
+
+- Na edição inline, trocar prompt livre por seleção 1–5 ou prompt validado aceitando apenas 1,2,3,4,5.
+
+- Ao criar usuário, enviar maxInstances.
+- Ao editar usuário, enviar maxInstances.
+- Não permitir campo vazio / sem limite para usuário comum.
+
+Migration:
+- Criar migration nova:
+  012_enforce_user_instance_limits
+- Atualizar usuários existentes:
+  UPDATE public.users SET max_instances = 1 WHERE max_instances IS NULL;
+- Adicionar CHECK:
+  max_instances BETWEEN 1 AND 5
+- Usar IF NOT EXISTS quando aplicável.
+```
+
+Resultado esperado: Admin controla **1 a 5 instâncias por usuário**.
