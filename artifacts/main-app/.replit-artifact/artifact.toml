@@ -18,7 +18,7 @@ kind = "web"
     run = "cd /home/runner/workspace && pnpm run dev"
 
     [services.production]
-    run = "cd /home/runner/workspace && npm start"
+    run = "cd /home/runner/workspace && pnpm start"
 
     [services.env]
     PORT = "5000"

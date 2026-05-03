@@ -15,10 +15,10 @@ kind = "web"
     localPort = 3001
 
     [services.development]
-    run = "npm run dev"
+    run = "pnpm run dev"
 
     [services.production]
-    run = "npm start"
+    run = "pnpm start"
 
     [services.env]
     PORT = "3001"
