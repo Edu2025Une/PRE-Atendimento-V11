@@ -12,6 +12,7 @@ import {
   logoutInstanceService,
   deleteInstanceService,
   purgeOrphanedInstance,
+  forceDeleteInstance,
 } from './services/instanceService.js';
 import {
   getQrCode,
@@ -807,6 +808,17 @@ app.delete('/api/instances/:name', requireAuth, async (req, res) => {
       isAdmin ? undefined : user.userId,
     );
     res.status(result.success ? 200 : 502).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Force Delete (admin only) — ignora a API, remove só do banco ───── */
+app.delete('/api/instances/:name/force', requireAuth, requireAdmin, async (req, res) => {
+  const { name } = req.params;
+  try {
+    const result = await forceDeleteInstance(name);
+    res.status(result.success ? 200 : 404).json(result);
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }

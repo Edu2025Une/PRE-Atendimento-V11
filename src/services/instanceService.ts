@@ -344,6 +344,36 @@ export async function deleteInstanceService(
   return { success: true, data: result.data };
 }
 
+/* ── Force Delete (admin) — remove do banco ignorando a API ──────────
+   Usado quando a API recusa o delete mas o registro precisa ser removido.
+   Exclusivo para admins — não aplica filtro de tenant/usuário.
+*/
+export async function forceDeleteInstance(instanceName: string) {
+  const { data: inst } = await supabaseAdmin
+    .from('instances')
+    .select('id')
+    .eq('instance_name', instanceName)
+    .maybeSingle();
+
+  if (!inst) {
+    return { success: false, error: `Instância "${instanceName}" não encontrada.` };
+  }
+
+  if (inst.id) {
+    await supabaseAdmin.from('instance_logs').delete().eq('instance_id', inst.id);
+  }
+
+  const { error: delErr } = await supabaseAdmin
+    .from('instances')
+    .delete()
+    .eq('instance_name', instanceName);
+
+  if (delErr) return { success: false, error: delErr.message };
+
+  console.log(`[forceDeleteInstance] ✅ "${instanceName}" removido do banco (force).`);
+  return { success: true, data: { message: `Instância "${instanceName}" removida forçadamente do banco.` } };
+}
+
 /* ── Purgar registro órfão ─────────────────────────────────────────── */
 export async function purgeOrphanedInstance(
   instanceName: string,

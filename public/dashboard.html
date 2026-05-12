@@ -1572,6 +1572,21 @@
     }
     .btn-disconnect:hover:not(:disabled) { background: rgba(180,83,9,0.2); border-color: #d97706; }
 
+    .btn-force-delete {
+      background: transparent;
+      border: 1.5px solid rgba(239,68,68,0.6);
+      color: #f87171;
+      border-radius: 0.55rem;
+      padding: 0.55rem 1rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: none;
+    }
+    .btn-force-delete:hover:not(:disabled) { background: rgba(239,68,68,0.15); border-color: #ef4444; }
+    .admin-only-el { display: none; }
+
     .btn-delete {
       background: rgba(220,38,38,0.1);
       border-color: #b91c1c55;
@@ -2808,6 +2823,9 @@
                 <button class="danger-btn btn-delete" id="is-btn-delete">
                   🗑️ Deletar Instância
                 </button>
+                <button class="btn-force-delete admin-only-el" id="is-btn-force-delete">
+                  ⚡ Forçar Exclusão
+                </button>
               </div>
             </div>
           </div>
@@ -3541,7 +3559,46 @@
         await loadInstances();
         if (_isSettingsPanelOpen()) backToList();
       } else {
-        showToast(`❌ Erro: ${json.error || 'Falha ao deletar.'}`, 'err');
+        if (_isAdmin) {
+          openModal({
+            icon:         '⚡',
+            title:        'Falha ao Deletar',
+            desc:         `A API recusou a exclusão: "${json.error || 'Erro desconhecido'}". Como administrador, você pode forçar a remoção do registro do banco de dados ignorando a API.`,
+            instanceName: name,
+            btnClass:     'danger-delete',
+            btnLabel:     '⚡ Forçar Exclusão',
+            onConfirm:    () => executeForceDelete(name),
+          });
+        } else {
+          showToast(`❌ Erro: ${json.error || 'Falha ao deletar.'}`, 'err');
+        }
+      }
+    }
+
+    function confirmForceDelete(name) {
+      openModal({
+        icon:         '⚡',
+        title:        'Forçar Exclusão',
+        desc:         'Remove o registro do banco de dados sem chamar a API Evolution GO. Use quando a instância já não existe no servidor remoto mas ainda aparece na lista.',
+        instanceName: name,
+        btnClass:     'danger-delete',
+        btnLabel:     '⚡ Forçar Exclusão',
+        onConfirm:    () => executeForceDelete(name),
+      });
+    }
+
+    async function executeForceDelete(name) {
+      const res  = await fetch(`/api/instances/${encodeURIComponent(name)}/force`, {
+        method:  'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Instância removida forçadamente do banco.', 'ok');
+        await loadInstances();
+        if (_isSettingsPanelOpen()) backToList();
+      } else {
+        showToast(`❌ Erro: ${json.error || 'Falha ao forçar exclusão.'}`, 'err');
       }
     }
 
@@ -3825,6 +3882,13 @@
       /* Wire buttons — disconnect começa desabilitado até a API responder */
       document.getElementById('is-btn-qr').onclick        = () => openQrModal(name);
       document.getElementById('is-btn-delete').onclick    = () => confirmDelete(name);
+      const forceBtn = document.getElementById('is-btn-force-delete');
+      if (_isAdmin) {
+        forceBtn.style.display = 'inline-flex';
+        forceBtn.onclick = () => confirmForceDelete(name);
+      } else {
+        forceBtn.style.display = 'none';
+      }
       const disconnBtn = document.getElementById('is-btn-disconnect');
       disconnBtn.disabled = true;
       disconnBtn.title    = 'Verificando conexão…';
