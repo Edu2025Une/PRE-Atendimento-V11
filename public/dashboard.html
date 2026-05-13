@@ -2911,77 +2911,216 @@
       <!-- ── CATÁLOGO ── -->
       <div class="panel" id="panel-catalog">
 
-        <!-- Coleções -->
-        <div class="card" style="margin-bottom:1.25rem">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Coleções</div>
-              <div class="card-desc">Agrupe seus itens por categoria</div>
-            </div>
-            <button class="btn" id="btn-toggle-add-collection"
-              style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)"
-              onclick="toggleAddCollectionForm()">+ Adicionar Coleção</button>
-          </div>
+        <!-- Sub-abas do Catálogo -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
+          <button id="ctab-btn-products" onclick="showCatalogTab('products')"
+            style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid #25D366;color:#25D366;margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
+            🛍️ Produtos
+          </button>
+          <button id="ctab-btn-collections" onclick="showCatalogTab('collections')"
+            style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
+            📂 Coleções
+          </button>
+          <button id="ctab-btn-meta" onclick="showCatalogTab('meta')"
+            style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
+            🔐 Meta Secrets
+          </button>
+        </div>
 
-          <div id="add-collection-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
-            <label for="col-name">Nome da Coleção</label>
-            <div class="field-wrap" style="margin-bottom:0.75rem">
-              <input type="text" id="col-name" placeholder="Ex: Lanches, Bebidas, Combos…" autocomplete="off" />
+        <!-- Aba: Produtos -->
+        <div id="ctab-products">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Produtos</div>
+                <div class="card-desc">Criados via Meta Commerce API e vinculados ao catálogo real</div>
+              </div>
+              <button class="btn" id="btn-toggle-add-item"
+                style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)"
+                onclick="toggleAddItemForm()">+ Adicionar Produto</button>
             </div>
-            <label for="col-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
-            <div class="field-wrap" style="margin-bottom:0.9rem">
-              <input type="text" id="col-desc" placeholder="Breve descrição da coleção" autocomplete="off" />
-            </div>
-            <div style="display:flex;gap:0.6rem">
-              <button class="btn" onclick="saveCollection()" style="flex:1;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)">✅ Salvar</button>
-              <button class="btn" onclick="toggleAddCollectionForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
-            </div>
-          </div>
 
-          <div id="collections-list">
-            <div class="empty-state"><div class="empty-icon">🔄</div>Carregando coleções…</div>
+            <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
+
+              <!-- Banner de aviso se Meta não configurado -->
+              <div id="meta-not-configured-warn" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:0.6rem;font-size:0.82rem;color:#fbbf24">
+                ⚠️ <strong>Catálogo Meta não conectado.</strong> Configure suas credenciais na aba <a href="#" onclick="showCatalogTab('meta');return false" style="color:#fbbf24;text-decoration:underline">Meta Secrets</a> antes de adicionar produtos.
+              </div>
+
+              <label for="item-name">Nome do Produto <span style="color:#f87171">*</span></label>
+              <div class="field-wrap" style="margin-bottom:0.75rem">
+                <input type="text" id="item-name" placeholder="Ex: X-Burguer, Coca-Cola…" autocomplete="off" />
+              </div>
+
+              <label for="item-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+              <div class="field-wrap" style="margin-bottom:0.75rem">
+                <input type="text" id="item-desc" placeholder="Descreva o produto" autocomplete="off" />
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+                <div>
+                  <label for="item-price">Preço em BRL <span style="color:#f87171">*</span></label>
+                  <div class="field-wrap">
+                    <input type="number" id="item-price" placeholder="0.00" min="0" step="0.01" autocomplete="off" />
+                  </div>
+                </div>
+                <div>
+                  <label for="item-availability">Disponibilidade <span style="color:#f87171">*</span></label>
+                  <div class="field-wrap">
+                    <select id="item-availability" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                      <option value="in stock">Em estoque</option>
+                      <option value="out of stock">Sem estoque</option>
+                      <option value="preorder">Pré-venda</option>
+                      <option value="available for order">Disponível para pedido</option>
+                      <option value="discontinued">Descontinuado</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <label for="item-image">URL da Imagem <span style="color:#f87171">*</span></label>
+              <div class="field-wrap" style="margin-bottom:0.75rem">
+                <input type="url" id="item-image" placeholder="https://exemplo.com/imagem.jpg" autocomplete="off" />
+              </div>
+
+              <label for="item-collection">Coleção <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+              <div class="field-wrap" style="margin-bottom:1rem">
+                <select id="item-collection" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                  <option value="">— Sem coleção —</option>
+                </select>
+              </div>
+
+              <div style="font-size:0.75rem;color:var(--tx4);margin-bottom:0.9rem">
+                🔗 O produto será criado no catálogo real da Meta via Commerce API (currency: BRL)
+              </div>
+
+              <div style="display:flex;gap:0.6rem">
+                <button class="btn" id="btn-save-item" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Criar no Catálogo Meta</button>
+                <button class="btn" onclick="toggleAddItemForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+              </div>
+            </div>
+
+            <div id="items-list">
+              <div class="empty-state"><div class="empty-icon">🔄</div>Carregando produtos…</div>
+            </div>
           </div>
         </div>
 
-        <!-- Itens -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Itens</div>
-              <div class="card-desc">Produtos ou serviços do seu catálogo</div>
+        <!-- Aba: Coleções -->
+        <div id="ctab-collections" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Coleções</div>
+                <div class="card-desc">Agrupe seus produtos por categoria</div>
+              </div>
+              <button class="btn" id="btn-toggle-add-collection"
+                style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)"
+                onclick="toggleAddCollectionForm()">+ Adicionar Coleção</button>
             </div>
-            <button class="btn" id="btn-toggle-add-item"
-              style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)"
-              onclick="toggleAddItemForm()">+ Adicionar Item</button>
-          </div>
 
-          <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
-            <label for="item-name">Nome do Item</label>
-            <div class="field-wrap" style="margin-bottom:0.75rem">
-              <input type="text" id="item-name" placeholder="Ex: X-Burguer, Coca-Cola…" autocomplete="off" />
+            <div id="add-collection-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
+              <label for="col-name">Nome da Coleção</label>
+              <div class="field-wrap" style="margin-bottom:0.75rem">
+                <input type="text" id="col-name" placeholder="Ex: Lanches, Bebidas, Combos…" autocomplete="off" />
+              </div>
+              <label for="col-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+              <div class="field-wrap" style="margin-bottom:0.9rem">
+                <input type="text" id="col-desc" placeholder="Breve descrição da coleção" autocomplete="off" />
+              </div>
+              <div style="display:flex;gap:0.6rem">
+                <button class="btn" onclick="saveCollection()" style="flex:1;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)">✅ Salvar</button>
+                <button class="btn" onclick="toggleAddCollectionForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+              </div>
             </div>
-            <label for="item-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
-            <div class="field-wrap" style="margin-bottom:0.75rem">
-              <input type="text" id="item-desc" placeholder="Descreva o item" autocomplete="off" />
-            </div>
-            <label for="item-price">Preço <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
-            <div class="field-wrap" style="margin-bottom:0.75rem">
-              <input type="number" id="item-price" placeholder="0.00" min="0" step="0.01" autocomplete="off" />
-            </div>
-            <label for="item-collection">Coleção <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
-            <div class="field-wrap" style="margin-bottom:0.9rem">
-              <select id="item-collection" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
-                <option value="">— Sem coleção —</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:0.6rem">
-              <button class="btn" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Salvar</button>
-              <button class="btn" onclick="toggleAddItemForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+
+            <div id="collections-list">
+              <div class="empty-state"><div class="empty-icon">🔄</div>Carregando coleções…</div>
             </div>
           </div>
+        </div>
 
-          <div id="items-list">
-            <div class="empty-state"><div class="empty-icon">🔄</div>Carregando itens…</div>
+        <!-- Aba: Meta Secrets -->
+        <div id="ctab-meta" style="display:none">
+          <div class="card">
+
+            <!-- Header estilo Secrets -->
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;padding-bottom:0.9rem;border-bottom:1px solid var(--border)">
+              <span style="font-size:1.1rem">🔒</span>
+              <span style="font-size:1rem;font-weight:700;color:var(--tx1)">Secrets</span>
+              <span id="meta-config-badge" style="display:none;margin-left:auto;font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-weight:600">✓ Configurado</span>
+            </div>
+
+            <!-- Tabela de secrets -->
+            <div style="border:1px solid var(--border);border-radius:0.7rem;overflow:hidden;margin-bottom:1.25rem">
+
+              <!-- Header da tabela -->
+              <div style="display:grid;grid-template-columns:180px 1fr;background:var(--bg);padding:0.55rem 1rem;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em">Key</span>
+                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:0.3rem">Value <span style="font-size:0.9rem;cursor:pointer" onclick="toggleMetaSecrets()" title="Mostrar/Ocultar valores">👁</span></span>
+              </div>
+
+              <!-- Linha: META_ACCESS_TOKEN -->
+              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_ACCESS_TOKEN</span>
+                <div style="position:relative;display:flex;align-items:center">
+                  <input type="password" id="meta-access-token" placeholder="EAAxxxxx…"
+                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
+                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
+                </div>
+              </div>
+
+              <!-- Linha: META_BUSINESS_ID -->
+              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_BUSINESS_ID</span>
+                <div style="position:relative;display:flex;align-items:center">
+                  <input type="password" id="meta-business-id" placeholder="123456789"
+                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
+                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
+                </div>
+              </div>
+
+              <!-- Linha: META_CATALOG_ID -->
+              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_CATALOG_ID</span>
+                <div style="position:relative;display:flex;align-items:center">
+                  <input type="password" id="meta-catalog-id" placeholder="987654321"
+                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
+                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
+                </div>
+              </div>
+
+              <!-- Linha: META_WABA_ID -->
+              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_WABA_ID</span>
+                <div style="position:relative;display:flex;align-items:center">
+                  <input type="password" id="meta-waba-id" placeholder="112233445566"
+                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
+                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
+                </div>
+              </div>
+
+            </div><!-- /tabela -->
+
+            <!-- Info de onde encontrar -->
+            <div style="margin-bottom:1.25rem;padding:0.75rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:0.6rem;font-size:0.78rem;color:var(--tx3);line-height:1.6">
+              📌 <strong style="color:var(--tx2)">Onde encontrar:</strong><br>
+              Business Manager → <em>business.facebook.com</em> → Configurações → Contas → WhatsApp Business<br>
+              Commerce Manager → <em>business.facebook.com/commerce</em> → seu Catálogo → ID do catálogo
+            </div>
+
+            <!-- Botões -->
+            <div style="display:flex;gap:0.75rem">
+              <button class="btn" onclick="saveMetaConfig()"
+                style="flex:1;background:linear-gradient(135deg,#1d4ed8,#2563eb);box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+                🔐 Continue
+              </button>
+              <button class="btn" onclick="loadMetaConfig()"
+                style="padding:0 1rem;background:transparent;border:1px solid var(--border);color:var(--tx3);font-size:0.82rem">
+                ↺ Recarregar
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -4811,15 +4950,81 @@
       if (!visible) document.getElementById('col-name').focus();
     }
 
-    function toggleAddItemForm() {
-      const f = document.getElementById('add-item-form');
-      const visible = f.style.display !== 'none';
-      f.style.display = visible ? 'none' : 'block';
-      if (!visible) { populateCollectionSelect(); document.getElementById('item-name').focus(); }
+    let _catalogCollections = [];
+    let _metaConfigured     = false;
+    let _metaSecretsVisible = false;
+
+    /* ── Sub-abas do Catálogo ─────────────────────────────────────── */
+    function showCatalogTab(tab) {
+      ['products','collections','meta'].forEach(t => {
+        document.getElementById(`ctab-${t}`).style.display          = t === tab ? '' : 'none';
+        const btn = document.getElementById(`ctab-btn-${t}`);
+        btn.style.borderBottomColor = t === tab ? '#25D366' : 'transparent';
+        btn.style.color             = t === tab ? '#25D366' : 'var(--tx3)';
+      });
+      if (tab === 'meta') loadMetaConfig();
     }
 
-    let _catalogCollections = [];
+    /* ── Alternar visibilidade dos campos de secret ───────────────── */
+    function toggleMetaSecrets() {
+      _metaSecretsVisible = !_metaSecretsVisible;
+      ['meta-access-token','meta-business-id','meta-catalog-id','meta-waba-id'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.type = _metaSecretsVisible ? 'text' : 'password';
+      });
+    }
 
+    /* ── Carregar Meta Config ─────────────────────────────────────── */
+    async function loadMetaConfig() {
+      try {
+        const res  = await fetch('/api/meta-config', { headers: getAuthHeaders() });
+        const json = await res.json();
+        _metaConfigured = json.configured || false;
+        const badge = document.getElementById('meta-config-badge');
+        if (badge) badge.style.display = _metaConfigured ? '' : 'none';
+        if (json.data) {
+          const d = json.data;
+          if (d.meta_access_token) document.getElementById('meta-access-token').placeholder = d.meta_access_token;
+          if (d.meta_business_id)  document.getElementById('meta-business-id').value  = d.meta_business_id;
+          if (d.meta_catalog_id)   document.getElementById('meta-catalog-id').value   = d.meta_catalog_id;
+          if (d.meta_waba_id)      document.getElementById('meta-waba-id').value       = d.meta_waba_id;
+        }
+      } catch { /* silently ignore */ }
+    }
+
+    /* ── Salvar Meta Config ───────────────────────────────────────── */
+    async function saveMetaConfig() {
+      const token     = document.getElementById('meta-access-token').value.trim();
+      const bizId     = document.getElementById('meta-business-id').value.trim();
+      const catalogId = document.getElementById('meta-catalog-id').value.trim();
+      const wabaId    = document.getElementById('meta-waba-id').value.trim();
+      if (!token)     { showToast('❌ META_ACCESS_TOKEN é obrigatório.', 'err'); return; }
+      if (!catalogId) { showToast('❌ META_CATALOG_ID é obrigatório.', 'err'); return; }
+      try {
+        const res  = await fetch('/api/meta-config', {
+          method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            meta_access_token: token,
+            meta_business_id : bizId   || null,
+            meta_catalog_id  : catalogId,
+            meta_waba_id     : wabaId  || null,
+          }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Credenciais Meta salvas com sucesso!', 'ok');
+          _metaConfigured = true;
+          const badge = document.getElementById('meta-config-badge');
+          if (badge) badge.style.display = '';
+          document.getElementById('meta-access-token').value = '';
+          document.getElementById('meta-access-token').placeholder = '••••••••(salvo)';
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao salvar credenciais.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro ao salvar credenciais.', 'err'); }
+    }
+
+    /* ── Carregar Coleções ────────────────────────────────────────── */
     async function loadCollections() {
       const el = document.getElementById('collections-list');
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔄</div>Carregando…</div>';
@@ -4848,6 +5053,7 @@
       }
     }
 
+    /* ── Carregar Produtos ────────────────────────────────────────── */
     async function loadItems() {
       const el = document.getElementById('items-list');
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔄</div>Carregando…</div>';
@@ -4856,28 +5062,36 @@
         const json = await res.json();
         const items = json.data || [];
         if (!items.length) {
-          el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛍️</div>Nenhum item cadastrado ainda.</div>';
+          el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛍️</div>Nenhum produto cadastrado ainda.</div>';
           return;
         }
         el.innerHTML = items.map(it => {
-          const colName = it.catalog_collections?.name || '';
-          const price   = it.price != null ? `R$ ${parseFloat(it.price).toFixed(2).replace('.',',')}` : '';
+          const colName  = it.catalog_collections?.name || '';
+          const price    = it.price != null ? `R$ ${parseFloat(it.price).toFixed(2).replace('.',',')}` : '';
+          const metaId   = it.meta_product_id || '';
+          const avail    = it.availability || '';
+          const availMap = { 'in stock':'🟢 Em estoque','out of stock':'🔴 Sem estoque','preorder':'🟡 Pré-venda','available for order':'🔵 Sob pedido','discontinued':'⚫ Descontinuado' };
           return `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0;border-bottom:1px solid var(--border2)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border2);gap:0.75rem">
+            ${it.image_url ? `<img src="${escHtml(it.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:0.5rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">` : ''}
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;color:var(--tx1);font-size:0.9rem">${escHtml(it.name)}${price ? ` <span style="color:#25D366;font-size:0.82rem">${price}</span>` : ''}</div>
               ${it.description ? `<div style="font-size:0.78rem;color:var(--tx3);margin-top:2px">${escHtml(it.description)}</div>` : ''}
-              ${colName ? `<div style="font-size:0.75rem;color:var(--tx4);margin-top:2px">📂 ${escHtml(colName)}</div>` : ''}
+              <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem">
+                ${avail ? `<span style="font-size:0.72rem;color:var(--tx4)">${availMap[avail] || avail}</span>` : ''}
+                ${colName ? `<span style="font-size:0.72rem;color:var(--tx4)">📂 ${escHtml(colName)}</span>` : ''}
+                ${metaId ? `<span style="font-size:0.7rem;color:var(--tx4);font-family:monospace" title="Meta Product ID">🏷 ${escHtml(metaId)}</span>` : '<span style="font-size:0.7rem;color:#f59e0b">⚠️ Não sincronizado com Meta</span>'}
+              </div>
             </div>
             <button onclick="deleteItem('${it.id}','${escHtml(it.name).replace(/'/g,"\\'")}') "
-              style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;margin-left:0.75rem;flex-shrink:0;transition:all 0.15s"
+              style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;flex-shrink:0;transition:all 0.15s"
               onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
               🗑 Excluir
             </button>
           </div>`;
         }).join('');
       } catch (e) {
-        el.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div>Erro ao carregar itens.</div>`;
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div>Erro ao carregar produtos.</div>`;
       }
     }
 
@@ -4887,6 +5101,7 @@
         _catalogCollections.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
     }
 
+    /* ── Salvar Coleção ───────────────────────────────────────────── */
     async function saveCollection() {
       const name = document.getElementById('col-name').value.trim();
       const desc = document.getElementById('col-desc').value.trim();
@@ -4909,31 +5124,67 @@
       } catch { showToast('❌ Erro ao criar coleção.', 'err'); }
     }
 
+    /* ── Criar Produto via Meta API ───────────────────────────────── */
     async function saveItem() {
       const name         = document.getElementById('item-name').value.trim();
       const desc         = document.getElementById('item-desc').value.trim();
       const priceRaw     = document.getElementById('item-price').value.trim();
+      const imageUrl     = document.getElementById('item-image').value.trim();
+      const availability = document.getElementById('item-availability').value;
       const collectionId = document.getElementById('item-collection').value;
-      if (!name) { showToast('❌ Nome do item é obrigatório.', 'err'); return; }
-      const price = priceRaw !== '' ? parseFloat(priceRaw) : null;
+
+      if (!name)     { showToast('❌ Nome do produto é obrigatório.', 'err'); return; }
+      if (!imageUrl) { showToast('❌ URL da imagem é obrigatória.', 'err'); return; }
+      if (priceRaw === '') { showToast('❌ Preço é obrigatório.', 'err'); return; }
+      const price = parseFloat(priceRaw);
+      if (isNaN(price) || price < 0) { showToast('❌ Preço inválido.', 'err'); return; }
+
+      const btn = document.getElementById('btn-save-item');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando para Meta…'; }
       try {
-        const res  = await fetch('/api/catalog/items', {
+        const res  = await fetch('/api/catalog/products', {
           method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description: desc || null, price, collection_id: collectionId || null }),
+          body: JSON.stringify({ name, description: desc || null, price, image_url: imageUrl, availability, collection_id: collectionId || null }),
         });
         const json = await res.json();
         if (json.success) {
-          showToast('✅ Item criado com sucesso.', 'ok');
-          document.getElementById('item-name').value  = '';
-          document.getElementById('item-desc').value  = '';
-          document.getElementById('item-price').value = '';
-          document.getElementById('item-collection').value = '';
+          showToast(`✅ Produto criado na Meta! ID: ${json.meta_product_id}`, 'ok');
+          document.getElementById('item-name').value        = '';
+          document.getElementById('item-desc').value        = '';
+          document.getElementById('item-price').value       = '';
+          document.getElementById('item-image').value       = '';
+          document.getElementById('item-collection').value  = '';
+          document.getElementById('item-availability').value = 'in stock';
           toggleAddItemForm();
           loadItems();
         } else {
-          showToast(`❌ ${json.error || 'Falha ao criar item.'}`, 'err');
+          showToast(`❌ ${json.error || 'Falha ao criar produto.'}`, 'err');
+          if (json.error && json.error.includes('Meta não conectado')) {
+            document.getElementById('meta-not-configured-warn').style.display = '';
+          }
         }
-      } catch { showToast('❌ Erro ao criar item.', 'err'); }
+      } catch { showToast('❌ Erro de conexão ao criar produto.', 'err'); }
+      finally {
+        if (btn) { btn.disabled = false; btn.textContent = '✅ Criar no Catálogo Meta'; }
+      }
+    }
+
+    /* ── Abrir form de produto (verificar se Meta está configurado) ─ */
+    async function toggleAddItemForm() {
+      const form = document.getElementById('add-item-form');
+      const isHidden = form.style.display === 'none';
+      form.style.display = isHidden ? '' : 'none';
+      if (isHidden) {
+        populateCollectionSelect();
+        // Verificar se Meta está configurado
+        try {
+          const res  = await fetch('/api/meta-config', { headers: getAuthHeaders() });
+          const json = await res.json();
+          const warn = document.getElementById('meta-not-configured-warn');
+          if (warn) warn.style.display = json.configured ? 'none' : '';
+          _metaConfigured = json.configured || false;
+        } catch { /* ignore */ }
+      }
     }
 
     async function deleteCollection(id, name) {
@@ -4952,13 +5203,13 @@
 
     async function deleteItem(id, name) {
       openModal({
-        icon: '🗑️', title: 'Excluir Item',
-        desc: `O item "${name}" será removido permanentemente.`,
+        icon: '🗑️', title: 'Excluir Produto',
+        desc: `O produto "${name}" será removido do banco. Para removê-lo do catálogo Meta, acesse o Commerce Manager.`,
         instanceName: name, btnClass: 'danger-delete', btnLabel: 'Excluir',
         onConfirm: async () => {
           const res  = await fetch(`/api/catalog/items/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
           const json = await res.json();
-          if (json.success) { showToast('✅ Item excluído.', 'ok'); loadItems(); }
+          if (json.success) { showToast('✅ Produto excluído.', 'ok'); loadItems(); }
           else showToast(`❌ ${json.error || 'Falha.'}`, 'err');
         },
       });

@@ -1164,6 +1164,159 @@ app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════════════
+   META CONFIG — Credenciais por tenant salvas no Supabase
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Ler configuração Meta ──────────────────────────────────────── */
+app.get('/api/meta-config', requireAuth, async (req, res) => {
+  const user = req.user!;
+  try {
+    let q = supabaseAdmin
+      .from('tenant_meta_config')
+      .select('id, meta_access_token, meta_business_id, meta_catalog_id, meta_waba_id, updated_at');
+    if (user.tenantId) q = q.eq('tenant_id', user.tenantId);
+    q = (q as any).eq('user_id', user.userId).maybeSingle();
+    const { data, error } = await (q as any);
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    const masked = data ? {
+      ...data,
+      meta_access_token: data.meta_access_token
+        ? '••••••••' + data.meta_access_token.slice(-4)
+        : '',
+    } : null;
+    res.json({ success: true, data: masked, configured: !!(data?.meta_catalog_id) });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Salvar configuração Meta ───────────────────────────────────── */
+app.post('/api/meta-config', requireAuth, async (req, res) => {
+  const user = req.user!;
+  const { meta_access_token, meta_business_id, meta_catalog_id, meta_waba_id } = req.body as {
+    meta_access_token?: string; meta_business_id?: string;
+    meta_catalog_id?: string; meta_waba_id?: string;
+  };
+  if (!meta_access_token?.trim() || !meta_catalog_id?.trim()) {
+    res.status(400).json({ success: false, error: 'META_ACCESS_TOKEN e META_CATALOG_ID são obrigatórios.' });
+    return;
+  }
+  try {
+    const payload = {
+      tenant_id: user.tenantId || null,
+      user_id: user.userId,
+      meta_access_token: meta_access_token.trim(),
+      meta_business_id: meta_business_id?.trim() || null,
+      meta_catalog_id: meta_catalog_id.trim(),
+      meta_waba_id: meta_waba_id?.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabaseAdmin
+      .from('tenant_meta_config')
+      .upsert(payload, { onConflict: 'tenant_id,user_id' })
+      .select('id, meta_business_id, meta_catalog_id, meta_waba_id, updated_at')
+      .single();
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Criar Produto no Catálogo Meta ─────────────────────────────── */
+app.post('/api/catalog/products', requireAuth, async (req, res) => {
+  const user = req.user!;
+  const { name, description, price, image_url, availability, collection_id } = req.body as {
+    name?: string; description?: string; price?: number | null;
+    image_url?: string; availability?: string; collection_id?: string | null;
+  };
+
+  if (!name?.trim())      { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
+  if (!image_url?.trim()) { res.status(400).json({ success: false, error: 'URL da imagem é obrigatória.' }); return; }
+  if (price == null || isNaN(Number(price)) || Number(price) < 0) {
+    res.status(400).json({ success: false, error: 'Preço é obrigatório e deve ser >= 0.' }); return;
+  }
+  const avail = availability || 'in stock';
+
+  try {
+    // Buscar credenciais Meta no banco
+    let cfgQ = supabaseAdmin.from('tenant_meta_config').select('*');
+    if (user.tenantId) cfgQ = cfgQ.eq('tenant_id', user.tenantId);
+    cfgQ = (cfgQ as any).eq('user_id', user.userId).maybeSingle();
+    const { data: cfg, error: cfgErr } = await (cfgQ as any);
+    if (cfgErr) { res.status(500).json({ success: false, error: cfgErr.message }); return; }
+    if (!cfg?.meta_access_token || !cfg?.meta_catalog_id) {
+      res.status(400).json({
+        success: false,
+        error: 'Catálogo Meta não conectado. Configure suas credenciais na aba Meta Secrets.',
+      });
+      return;
+    }
+
+    const catalogId    = cfg.meta_catalog_id;
+    const token        = cfg.meta_access_token;
+    const retailerId   = `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const priceInCents = Math.round(Number(price) * 100);
+    const appUrl       = `https://${(process.env.REPLIT_DOMAINS || 'localhost').split(',')[0]}`;
+
+    const metaUrl     = `https://graph.facebook.com/v20.0/${catalogId}/products`;
+    const metaPayload = new URLSearchParams({
+      retailer_id : retailerId,
+      name        : name.trim(),
+      description : description?.trim() || name.trim(),
+      url         : appUrl,
+      image_url   : image_url.trim(),
+      currency    : 'BRL',
+      price       : String(priceInCents),
+      availability: avail,
+      condition   : 'new',
+    });
+
+    console.log(`[META CATALOG] POST ${metaUrl}`);
+    console.log(`[META CATALOG] Payload: ${metaPayload.toString()}`);
+
+    const metaRes  = await fetch(metaUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: metaPayload,
+    });
+    const metaJson = await metaRes.json() as Record<string, unknown>;
+    console.log(`[META CATALOG] Response (${metaRes.status}):`, JSON.stringify(metaJson));
+
+    if (!metaRes.ok || !(metaJson as any).id) {
+      const err = (metaJson as any)?.error;
+      const errMsg = err?.message || err?.error_user_msg || JSON.stringify(metaJson);
+      console.error(`[META CATALOG] Erro:`, errMsg);
+      res.status(502).json({ success: false, error: `Meta API: ${errMsg}`, meta_response: metaJson });
+      return;
+    }
+
+    const { data: item, error: dbErr } = await supabaseAdmin
+      .from('catalog_items')
+      .insert({
+        name           : name.trim(),
+        description    : description?.trim() || null,
+        price          : price ?? null,
+        currency       : 'BRL',
+        availability   : avail,
+        image_url      : image_url.trim(),
+        collection_id  : collection_id || null,
+        meta_product_id: (metaJson as any).id,
+        tenant_id      : user.tenantId || null,
+        created_by     : user.userId,
+      })
+      .select('id, name, description, price, image_url, availability, meta_product_id, collection_id, created_at')
+      .single();
+
+    if (dbErr) { res.status(500).json({ success: false, error: dbErr.message }); return; }
+    res.status(201).json({ success: true, data: item, meta_product_id: (metaJson as any).id });
+  } catch (err: unknown) {
+    console.error('[META CATALOG] Exceção:', err);
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 async function start() {
   try {
     await runMigrations();
