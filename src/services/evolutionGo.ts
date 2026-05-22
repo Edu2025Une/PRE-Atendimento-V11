@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const EVOLUTION_API_URL = '';
-const GLOBAL_API_KEY    = process.env.GLOBAL_API_KEY || '';
+const GLOBAL_API_KEY    = '';
 
 export interface EvolutionResponse {
   success:    boolean;

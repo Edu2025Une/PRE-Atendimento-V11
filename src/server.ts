@@ -909,7 +909,7 @@ app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
 app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, res) => {
   const { evolutionUrl, apiKey } = req.body as { evolutionUrl?: string; apiKey?: string };
   const baseUrl = evolutionUrl?.trim() || '';
-  const key     = (apiKey?.trim())      || process.env.GLOBAL_API_KEY    || '';
+  const key     = apiKey?.trim() || '';
 
   if (!baseUrl) { res.status(400).json({ success: false, error: 'URL da API não informada.' }); return; }
   if (!key)     { res.status(400).json({ success: false, error: 'Chave da API não informada.' }); return; }
