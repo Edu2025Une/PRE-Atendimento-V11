@@ -1,6 +1,6 @@
 # Evolution GO — Referência de Endpoints
 
-> **Fonte oficial:** `https://evogo.pre-atendimento.com/swagger/doc.json`
+> **Fonte oficial:** Swagger da instância EvoGo configurada pelo administrador.
 > Todos os endpoints abaixo foram extraídos diretamente do Swagger da API.
 > Não usar suposições ou documentação de outros projetos (Evolution API Node.js/Baileys).
 

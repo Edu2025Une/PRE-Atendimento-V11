@@ -65,7 +65,7 @@ Banco:
 
 API externa:
 - Evolution GO
-- https://evogo.pre-atendimento.com
+- URL configurada pelo administrador no painel (sem rota padrão)
 
 ---
 
