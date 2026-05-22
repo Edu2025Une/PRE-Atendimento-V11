@@ -2630,7 +2630,7 @@
           </div>
         </div>
 
-        <!-- Sub-aba: Evolution API -->
+        <!-- Sub-aba: EvoGo -->
         <div id="cfgtab-api" style="display:none">
           <div class="card">
             <div class="card-header">
@@ -2694,7 +2694,7 @@
           <div class="inst-page-header">
             <div>
               <img src="/evogo-logo.png" alt="Evo-Go" style="height:32px;width:auto;display:block;object-fit:contain;" />
-              <div class="inst-page-desc">Gerencie suas instâncias WhatsApp do Evolution GO</div>
+              <div class="inst-page-desc">Gerencie suas instâncias WhatsApp do EvoGo</div>
             </div>
             <button class="btn-new-instance"
               onclick="showPanel('panel-config', null, 'bnav-config', 'snav-config'); showConfigTab('create')">
@@ -3341,7 +3341,7 @@
       if (panelId === 'panel-monitor') { loadMonitor(); _startMonitorPoll(); }
       else _stopMonitorPoll();
 
-      if (panelId === 'panel-config') loadEvolutionConfig();
+      if (panelId === 'panel-config') loadEvoGoConfig();
 
       if (panelId === 'panel-catalog') { loadCollections(); loadItems(); }
     }
@@ -3367,7 +3367,7 @@
 
     function updateAdminConfigUI() {
       const cfg    = loadAdminConfig();
-      const hasUrl = !!(cfg?.evolutionUrl?.trim());
+      const hasUrl = !!(cfg?.evogoUrl?.trim());
       const hasKey = !!(cfg?.apiKey?.trim());
 
       const statusUrl = document.getElementById('config-status-url');
@@ -3384,21 +3384,21 @@
 
 
       if (cfg) {
-        document.getElementById('cfg-url').value = cfg.evolutionUrl || '';
+        document.getElementById('cfg-url').value = cfg.evogoUrl || '';
       }
     }
 
     /* ── Carrega config do banco e preenche o painel ── */
-    async function loadEvolutionConfig() {
+    async function loadEvoGoConfig() {
       if (!_isAdmin) return;
       try {
-        const r = await fetch('/api/admin/config/evolution', { headers: getAuthHeaders() });
+        const r = await fetch('/api/admin/config/evogo', { headers: getAuthHeaders() });
         if (!r.ok) return;
         const j = await r.json();
         if (!j.success) return;
         /* Atualiza cache local para getApiOverrides() funcionar sem nova request */
         const existing = loadAdminConfig() || {};
-        localStorage.setItem(CFG_KEY, JSON.stringify({ ...existing, evolutionUrl: j.url || '' }));
+        localStorage.setItem(CFG_KEY, JSON.stringify({ ...existing, evogoUrl: j.url || '' }));
         const urlEl = document.getElementById('cfg-url');
         if (urlEl && j.url) urlEl.value = j.url;
         const keyEl = document.getElementById('cfg-key');
@@ -3421,7 +3421,7 @@
         btn.disabled = true;
 
         try {
-          const r = await fetch('/api/admin/config/evolution', {
+          const r = await fetch('/api/admin/config/evogo', {
             method:  'POST',
             headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body:    JSON.stringify({ url: cleanUrl || undefined, key: key || undefined }),
@@ -3430,7 +3430,7 @@
 
           if (j.success) {
             /* Atualiza cache local para getApiOverrides() funcionar imediatamente */
-            localStorage.setItem(CFG_KEY, JSON.stringify({ evolutionUrl: cleanUrl || '', apiKey: key || '' }));
+            localStorage.setItem(CFG_KEY, JSON.stringify({ evogoUrl: cleanUrl || '', apiKey: key || '' }));
             const badge = document.getElementById('config-saved-badge');
             badge.classList.add('visible');
             setTimeout(() => badge.classList.remove('visible'), 3500);
@@ -3467,7 +3467,7 @@
           const res  = await fetch('/api/admin/test-connection', {
             method:  'POST',
             headers: getAuthHeaders(),
-            body:    JSON.stringify({ evolutionUrl: url || undefined, apiKey: key || undefined }),
+            body:    JSON.stringify({ evogoUrl: url || undefined, apiKey: key || undefined }),
           });
           const json = await res.json();
 
@@ -3567,7 +3567,7 @@
             return {
               instanceName,
               token: token || undefined,
-              ...(adminCfg?.evolutionUrl ? { evolutionUrl: adminCfg.evolutionUrl } : {}),
+              ...(adminCfg?.evogoUrl ? { evogoUrl: adminCfg.evogoUrl } : {}),
               ...(adminCfg?.apiKey       ? { apiKey:       adminCfg.apiKey       } : {}),
             };
           })()),
@@ -3593,7 +3593,7 @@
           const connectResp     = data.connect_response || null;
 
           /* Extrair campos do create_response:
-             Evolution GO pode retornar { data: { name, token, connected, createdAt } }
+             EvoGo pode retornar { data: { name, token, connected, createdAt } }
              ou { instance: { instanceName } } + { qrcode: { base64 } }
           */
           const inner = createResp.data || createResp.instance || createResp || {};
@@ -3713,7 +3713,7 @@
     function getApiOverrides() {
       const cfg = loadAdminConfig ? loadAdminConfig() : null;
       return {
-        evolutionUrl: cfg?.evolutionUrl || undefined,
+        evogoUrl: cfg?.evogoUrl || undefined,
         apiKey:       cfg?.apiKey       || undefined,
       };
     }
@@ -3820,7 +3820,7 @@
       openModal({
         icon:         '⚡',
         title:        'Forçar Exclusão',
-        desc:         'Remove o registro do banco de dados sem chamar a API Evolution GO. Use quando a instância já não existe no servidor remoto mas ainda aparece na lista.',
+        desc:         'Remove o registro do banco de dados sem chamar a API EvoGo. Use quando a instância já não existe no servidor remoto mas ainda aparece na lista.',
         instanceName: name,
         btnClass:     'danger-delete',
         btnLabel:     '⚡ Forçar Exclusão',
@@ -4486,7 +4486,7 @@
         const overrides       = getApiOverrides();
         const instanceToken   = _qrCurrentToken || _getInstanceToken(name);
         const params          = new URLSearchParams();
-        if (overrides.evolutionUrl) params.set('evolutionUrl', overrides.evolutionUrl);
+        if (overrides.evogoUrl) params.set('evogoUrl', overrides.evogoUrl);
         if (instanceToken)          params.set('instanceToken', instanceToken);
 
         const url  = `/api/instances/${encodeURIComponent(name)}/qrcode${params.size ? '?' + params.toString() : ''}`;
@@ -4535,8 +4535,8 @@
           return;
         }
 
-        /* ── Normalizar resposta Evolution GO ──
-           Evolution GO /instance/qr retorna:
+        /* ── Normalizar resposta EvoGo ──
+           EvoGo /instance/qr retorna:
              { data: { data: { Qrcode: "data:image/png;base64,...", Code: "..." } } }
            Outros formatos possíveis (fallback):
              { data: { base64, code } }
@@ -4547,12 +4547,12 @@
         const inner  = outer?.data || outer;
 
         const base64 =
-          inner?.Qrcode || inner?.qrcode ||                            /* Evolution GO */
+          inner?.Qrcode || inner?.qrcode ||                            /* EvoGo */
           outer?.base64 || outer?.qrcode?.base64 || inner?.base64 ||   /* outros formatos */
           null;
 
         const code =
-          inner?.Code   || inner?.code   ||                            /* Evolution GO */
+          inner?.Code   || inner?.code   ||                            /* EvoGo */
           outer?.code   || outer?.qrcode?.code   || inner?.code_text || /* outros formatos */
           null;
 

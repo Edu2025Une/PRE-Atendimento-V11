@@ -94,19 +94,20 @@ function extractInstanceToken(meta: Record<string, unknown>): string {
   return '';
 }
 
-/* ── Helper: resolve config Evolution GO por tenant ─────────────────── */
-async function getEvolutionConfig(tenantId: string): Promise<{ url: string; key: string }> {
-  const { data, error } = await supabaseAdmin
-    .from('tenants')
-    .select('evolution_api_url, evolution_global_api_key')
-    .eq('id', tenantId)
-    .maybeSingle();
+/* ── Helper: resolve config EvoGo (global — tabela system_config) ── */
+async function getEvoGoConfig(): Promise<{ url: string; key: string }> {
+  const { data } = await supabaseAdmin
+    .from('system_config')
+    .select('key, value')
+    .in('key', ['evogo_url', 'evogo_api_key']);
 
-  const url = data?.evolution_api_url?.trim()        || '';
-  const key = data?.evolution_global_api_key?.trim() || '';
+  const url = (data as { key: string; value: string }[] | null)
+    ?.find(r => r.key === 'evogo_url')?.value?.trim() || '';
+  const key = (data as { key: string; value: string }[] | null)
+    ?.find(r => r.key === 'evogo_api_key')?.value?.trim() || '';
 
-  if (error || !url || !key) {
-    throw new Error('Tenant sem configuração da Evolution API.');
+  if (!url || !key) {
+    throw new Error('EvoGo não configurado. Acesse Configuração → EvoGo.');
   }
   return { url, key };
 }
@@ -422,11 +423,9 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
 
 /* ── Criar instância ─────────────────────────────────────────────────── */
 app.post('/api/instances', requireAuth, async (req, res) => {
-  const { instanceName, token, evolutionUrl, apiKey, tenantId } = req.body as {
+  const { instanceName, token, tenantId } = req.body as {
     instanceName?: string;
     token?:        string;
-    evolutionUrl?: string;
-    apiKey?:       string;
     tenantId?:     string;
   };
 
@@ -471,8 +470,8 @@ app.post('/api/instances', requireAuth, async (req, res) => {
   }
 
   let _evoCreate: { url: string; key: string };
-  try { _evoCreate = await getEvolutionConfig(effectiveTenantId); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _evoCreate = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
 
   try {
     const result = await createInstanceAndPersist(
@@ -538,8 +537,8 @@ app.get('/api/instances/:name/qrcode', requireAuth, async (req, res) => {
 
   const _qrTid = await getInstanceTenant(name) || user.tenantId || '';
   let _qrEvo: { url: string; key: string };
-  try { _qrEvo = await getEvolutionConfig(_qrTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _qrEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
 
   try {
     const result = await getQrCode(instanceToken, _qrEvo.url);
@@ -595,8 +594,8 @@ app.get('/api/instances/:name/status', requireAuth, async (req, res) => {
 
   const _stTid = await getInstanceTenant(name) || user.tenantId || '';
   let _stEvo: { url: string; key: string };
-  try { _stEvo = await getEvolutionConfig(_stTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _stEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
 
   try {
     const result = await getInstanceStatus(instanceToken, _stEvo.url);
@@ -662,7 +661,7 @@ app.get('/api/instances/:name/picture', requireAuth, async (req, res) => {
 
     const _picTid = await getInstanceTenant(name) || user.tenantId || '';
     let _picEvoUrl: string | undefined;
-    try { const cfg = await getEvolutionConfig(_picTid); _picEvoUrl = cfg.url; } catch { _picEvoUrl = undefined; }
+    try { const cfg = await getEvoGoConfig(); _picEvoUrl = cfg.url; } catch { _picEvoUrl = undefined; }
 
     const result = await getProfilePicture(instanceToken, _picEvoUrl);
     if (result.success && result.data) {
@@ -701,8 +700,8 @@ app.post('/api/instances/:name/connect', requireAuth, async (req, res) => {
 
   const _conTid = await getInstanceTenant(name) || user.tenantId || '';
   let _conEvo: { url: string; key: string };
-  try { _conEvo = await getEvolutionConfig(_conTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _conEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
 
   try {
     const result = await connectInstance(token, _conEvo.url, { immediate, phone, subscribe, webhookUrl });
@@ -720,8 +719,8 @@ app.post('/api/instances/:name/disconnect', requireAuth, async (req, res) => {
   const { instanceToken } = req.body as { instanceToken?: string };
   const _disTid = await getInstanceTenant(name) || user.tenantId || '';
   let _disEvo: { url: string; key: string };
-  try { _disEvo = await getEvolutionConfig(_disTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _disEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
   try {
     const result = await disconnectInstanceService(
       name, user.tenantId, isAdmin,
@@ -742,8 +741,8 @@ app.delete('/api/instances/:name/logout', requireAuth, async (req, res) => {
   const { instanceToken: logoutToken } = req.body as { instanceToken?: string };
   const _logTid = await getInstanceTenant(name) || user.tenantId || '';
   let _logEvo: { url: string; key: string };
-  try { _logEvo = await getEvolutionConfig(_logTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _logEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
   try {
     const result = await logoutInstanceService(
       name, user.tenantId, isAdmin,
@@ -781,8 +780,8 @@ app.post('/api/instances/:name/pair', requireAuth, async (req, res) => {
 
   const _pairTid = await getInstanceTenant(name) || user.tenantId || '';
   let _pairEvo: { url: string; key: string };
-  try { _pairEvo = await getEvolutionConfig(_pairTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _pairEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
 
   try {
     const result = await pairInstance(token, phone, subscribe, _pairEvo.url);
@@ -799,8 +798,8 @@ app.delete('/api/instances/:name', requireAuth, async (req, res) => {
   const isAdmin  = user.role === 'admin';
   const _delTid = await getInstanceTenant(name) || user.tenantId || '';
   let _delEvo: { url: string; key: string };
-  try { _delEvo = await getEvolutionConfig(_delTid); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _delEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
   try {
     const result = await deleteInstanceService(
       name, user.tenantId, isAdmin,
@@ -891,12 +890,12 @@ app.patch('/api/instances/:name/owner', requireAuth, requireAdmin, async (req, r
   }
 });
 
-/* ── Admin: Listar instâncias na Evolution GO API ───────────────────── */
+/* ── Admin: Listar instâncias na EvoGo API ───────────────────── */
 app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
   const tenantId = req.user!.tenantId || '';
   let _adminEvo: { url: string; key: string };
-  try { _adminEvo = await getEvolutionConfig(tenantId); }
-  catch { res.status(400).json({ success: false, error: 'Tenant sem configuração da Evolution API.' }); return; }
+  try { _adminEvo = await getEvoGoConfig(); }
+  catch { res.status(400).json({ success: false, error: 'EvoGo não configurado. Acesse Configuração → EvoGo.' }); return; }
   try {
     const result = await getAllInstances(_adminEvo.url, _adminEvo.key);
     res.status(result.success ? 200 : (result.httpStatus || 502)).json(result);
@@ -907,20 +906,20 @@ app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
 
 /* ── Admin: Testar conexão ───────────────────────────────────────────── */
 app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, res) => {
-  const { evolutionUrl, apiKey } = req.body as { evolutionUrl?: string; apiKey?: string };
-  let baseUrl = evolutionUrl?.trim() || '';
-  let key     = apiKey?.trim()      || '';
+  const { evogoUrl, apiKey } = req.body as { evogoUrl?: string; apiKey?: string };
+  let baseUrl = evogoUrl?.trim() || '';
+  let key     = apiKey?.trim()   || '';
 
-  /* Se URL ou chave não foram enviadas na request, busca do banco do tenant */
+  /* Se URL ou chave não foram enviadas na request, busca da system_config global */
   if (!baseUrl || !key) {
     try {
       const { data } = await supabaseAdmin
-        .from('tenants')
-        .select('evolution_api_url, evolution_global_api_key')
-        .eq('id', req.user!.tenantId)
-        .maybeSingle();
-      if (!baseUrl) baseUrl = data?.evolution_api_url?.trim()        || '';
-      if (!key)     key     = data?.evolution_global_api_key?.trim() || '';
+        .from('system_config')
+        .select('key, value')
+        .in('key', ['evogo_url', 'evogo_api_key']);
+      const rows = data as { key: string; value: string }[] | null;
+      if (!baseUrl) baseUrl = rows?.find(r => r.key === 'evogo_url')?.value?.trim()     || '';
+      if (!key)     key     = rows?.find(r => r.key === 'evogo_api_key')?.value?.trim() || '';
     } catch { /* segue com o que tiver */ }
   }
 
@@ -964,7 +963,7 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
       res.json({ success: true, data: [], checkedAt });
       return;
     }
-    /* ── Ajuste 2: separar órfãos antes de chamar a Evolution API ── */
+    /* ── Ajuste 2: separar órfãos antes de chamar a EvoGo API ── */
     const hasId = (inst: Record<string, unknown>): boolean => {
       const meta  = (inst.metadata as Record<string, unknown>) || {};
       const newId = ((meta.create as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined)?.id;
@@ -984,7 +983,7 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
         const token    = extractInstanceToken(meta);
         const tenantId = (inst.tenant_id as string) || '';
         let _monEvoUrl: string | undefined;
-        try { const cfg = await getEvolutionConfig(tenantId); _monEvoUrl = cfg.url; } catch { _monEvoUrl = undefined; }
+        try { const cfg = await getEvoGoConfig(); _monEvoUrl = cfg.url; } catch { _monEvoUrl = undefined; }
         try {
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => { const e = new Error('Monitor timeout'); e.name = 'AbortError'; reject(e); }, 6000)
@@ -1009,44 +1008,46 @@ app.get('/api/monitor', requireAuth, async (req, res) => {
   }
 });
 
-/* ── Admin: Ler config Evolution GO ─────────────────────────────────── */
-app.get('/api/admin/config/evolution', requireAuth, requireAdmin, async (req, res) => {
+/* ── Admin: Ler config EvoGo ─────────────────────────────────── */
+app.get('/api/admin/config/evogo', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { data } = await supabaseAdmin
-      .from('tenants')
-      .select('evolution_api_url, evolution_global_api_key')
-      .eq('id', req.user!.tenantId)
-      .maybeSingle();
-    res.json({
-      success:      true,
-      url:          data?.evolution_api_url?.trim()        || '',
-      keyConfigured: !!(data?.evolution_global_api_key?.trim()),
-    });
+      .from('system_config')
+      .select('key, value')
+      .in('key', ['evogo_url', 'evogo_api_key']);
+    const rows = data as { key: string; value: string }[] | null;
+    const url  = rows?.find(r => r.key === 'evogo_url')?.value?.trim()     || '';
+    const key  = rows?.find(r => r.key === 'evogo_api_key')?.value?.trim() || '';
+    res.json({ success: true, url, keyConfigured: !!key });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
 });
 
-/* ── Admin: Salvar config Evolution GO ──────────────────────────────── */
-app.post('/api/admin/config/evolution', requireAuth, requireAdmin, async (req, res) => {
+/* ── Admin: Salvar config EvoGo ──────────────────────────────── */
+app.post('/api/admin/config/evogo', requireAuth, requireAdmin, async (req, res) => {
   const { url, key } = req.body as { url?: string; key?: string };
   const cleanUrl = url?.trim() || '';
-  if (!cleanUrl) {
-    res.status(400).json({ success: false, error: 'URL da API é obrigatória.' });
+  const cleanKey = key?.trim() || '';
+
+  if (!cleanUrl && !cleanKey) {
+    res.status(400).json({ success: false, error: 'Informe ao menos a URL ou a GLOBAL_API_KEY.' });
     return;
   }
-  try { new URL(cleanUrl); } catch {
-    res.status(400).json({ success: false, error: 'URL inválida. Informe uma URL completa (ex: https://evogo.exemplo.com).' });
-    return;
+  if (cleanUrl) {
+    try { new URL(cleanUrl); } catch {
+      res.status(400).json({ success: false, error: 'URL inválida. Informe uma URL completa (ex: https://evogo.exemplo.com).' });
+      return;
+    }
   }
   try {
-    const upd: Record<string, string> = { evolution_api_url: cleanUrl };
-    const cleanKey = key?.trim() || '';
-    if (cleanKey) upd.evolution_global_api_key = cleanKey;
+    const upserts: { key: string; value: string; updated_at: string }[] = [];
+    const now = new Date().toISOString();
+    if (cleanUrl) upserts.push({ key: 'evogo_url',     value: cleanUrl, updated_at: now });
+    if (cleanKey) upserts.push({ key: 'evogo_api_key', value: cleanKey, updated_at: now });
     const { error } = await supabaseAdmin
-      .from('tenants')
-      .update(upd)
-      .eq('id', req.user!.tenantId);
+      .from('system_config')
+      .upsert(upserts, { onConflict: 'key' });
     if (error) { res.status(500).json({ success: false, error: error.message }); return; }
     res.json({ success: true });
   } catch (err: unknown) {
