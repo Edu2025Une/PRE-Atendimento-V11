@@ -3272,6 +3272,38 @@
             </div>
 
           </div>
+
+          <!-- ── Produtos do CRM ── -->
+          <div class="card" style="margin-top:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border)">
+              <div>
+                <div style="font-weight:700;color:var(--tx1);font-size:0.95rem">Produtos no EvoAI CRM</div>
+                <div style="font-size:0.78rem;color:var(--tx3);margin-top:2px">Listagem direta da sua conta CRM</div>
+              </div>
+              <button class="btn" onclick="loadCRMProducts(1)"
+                style="padding:0.4rem 0.9rem;font-size:0.8rem;background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 2px 8px rgba(8,145,178,0.25)">
+                🔄 Carregar
+              </button>
+            </div>
+
+            <!-- Paginação topo -->
+            <div id="crm-products-pagination" style="display:none;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+              <button id="crm-pg-prev" onclick="loadCRMProducts(_crmPage - 1)"
+                style="background:transparent;border:1px solid var(--border);color:var(--tx3);border-radius:0.4rem;padding:0.25rem 0.65rem;font-size:0.78rem;cursor:pointer">
+                ← Anterior
+              </button>
+              <span id="crm-pg-info" style="font-size:0.78rem;color:var(--tx3);flex:1;text-align:center"></span>
+              <button id="crm-pg-next" onclick="loadCRMProducts(_crmPage + 1)"
+                style="background:transparent;border:1px solid var(--border);color:var(--tx3);border-radius:0.4rem;padding:0.25rem 0.65rem;font-size:0.78rem;cursor:pointer">
+                Próxima →
+              </button>
+            </div>
+
+            <div id="crm-products-list" style="min-height:60px">
+              <div class="empty-state" style="padding:1.5rem 0"><div class="empty-icon" style="font-size:1.5rem">🤖</div>Clique em "Carregar" para buscar os produtos do CRM</div>
+            </div>
+          </div>
+
         </div>
 
       </div><!-- /#panel-catalog -->
@@ -5289,6 +5321,78 @@
           document.getElementById('crm-token').placeholder = '••••••••(salvo)';
         }
       } catch { /* silently ignore */ }
+    }
+
+    /* ── Listar Produtos do EvoAI CRM ────────────────────────────── */
+    let _crmPage      = 1;
+    let _crmTotalPages = 1;
+
+    async function loadCRMProducts(page) {
+      page = Math.max(1, page || 1);
+      const listEl = document.getElementById('crm-products-list');
+      const pagEl  = document.getElementById('crm-products-pagination');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.3rem">🔄</div>Buscando no CRM…</div>';
+      try {
+        const res  = await fetch(`/api/admin/crm/products?page=${page}&per_page=25`, { headers: getAuthHeaders() });
+        const json = await res.json();
+        if (!json.success) {
+          listEl.innerHTML = `<div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.3rem">❌</div>${escHtml(json.error || 'Erro ao buscar produtos.')}</div>`;
+          return;
+        }
+        const raw      = json.data;
+        const products = Array.isArray(raw) ? raw : (raw?.data || raw?.products || raw?.items || []);
+        const meta     = raw?.meta || raw?.pagination || {};
+        const total    = meta.total_count || meta.total || products.length;
+        const perPage  = meta.per_page    || 25;
+        _crmPage       = page;
+        _crmTotalPages = Math.max(1, Math.ceil(total / perPage));
+
+        if (!products.length) {
+          listEl.innerHTML = '<div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.3rem">📭</div>Nenhum produto encontrado no CRM.</div>';
+          if (pagEl) pagEl.style.display = 'none';
+          return;
+        }
+
+        /* paginação */
+        if (pagEl) {
+          pagEl.style.display = 'flex';
+          const infoEl  = document.getElementById('crm-pg-info');
+          const prevBtn = document.getElementById('crm-pg-prev');
+          const nextBtn = document.getElementById('crm-pg-next');
+          if (infoEl)  infoEl.textContent = `Página ${_crmPage} de ${_crmTotalPages} · ${total} produto${total !== 1 ? 's' : ''}`;
+          if (prevBtn) prevBtn.disabled   = _crmPage <= 1;
+          if (nextBtn) nextBtn.disabled   = _crmPage >= _crmTotalPages;
+        }
+
+        const kindMap   = { physical:'📦 Físico', digital:'💾 Digital', subscription:'🔁 Assinatura', service:'🛠 Serviço' };
+        const statusMap = { active:'🟢 Ativo', inactive:'🔴 Inativo', draft:'⚪ Rascunho' };
+
+        listEl.innerHTML = products.map(p => {
+          const price   = p.default_price != null ? `R$ ${parseFloat(p.default_price).toFixed(2).replace('.',',')}` : '';
+          const kind    = kindMap[p.kind]   || p.kind   || '';
+          const status  = statusMap[p.status] || p.status || '';
+          const imgUrl  = p.metadata?.image_url || '';
+          return `
+          <div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--border2)">
+            ${imgUrl
+              ? `<img src="${escHtml(imgUrl)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">`
+              : `<div style="width:44px;height:44px;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🤖</div>`}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;color:var(--tx1);font-size:0.88rem">${escHtml(p.name || '—')}${price ? ` <span style="color:#25D366;font-size:0.8rem">${price}</span>` : ''}</div>
+              ${p.description ? `<div style="font-size:0.75rem;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.description)}</div>` : ''}
+              <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.3rem">
+                ${kind   ? `<span style="font-size:0.7rem;color:var(--tx4)">${kind}</span>`   : ''}
+                ${status ? `<span style="font-size:0.7rem;color:var(--tx4)">${status}</span>` : ''}
+                ${p.sku  ? `<span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">SKU: ${escHtml(p.sku)}</span>` : ''}
+                <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace" title="CRM ID">🆔 ${escHtml(String(p.id || ''))}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        listEl.innerHTML = `<div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.3rem">❌</div>Erro de conexão com o CRM.</div>`;
+      }
     }
 
     /* ── Salvar EvoAI CRM Config ──────────────────────────────────── */

@@ -1382,6 +1382,27 @@ app.get('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+/* ── Listar produtos do EvoAI CRM (proxy) ───────────────────────── */
+app.get('/api/admin/crm/products', requireAuth, requireAdmin, async (req, res) => {
+  const page     = Number(req.query.page     || 1);
+  const per_page = Number(req.query.per_page || 25);
+  try {
+    const cfg = await getEvoCRMConfig();
+    if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
+    const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products?page=${page}&per_page=${per_page}`;
+    console.log(`[EVO CRM] GET ${url}`);
+    const r    = await fetch(url, { headers: { 'api_access_token': cfg.token } });
+    const json = await r.json() as Record<string, unknown>;
+    if (!r.ok) {
+      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao buscar produtos do CRM.' });
+      return;
+    }
+    res.json({ success: true, data: json });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Salvar config EvoAI CRM ────────────────────────────────────── */
 app.post('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res) => {
   const { url, token } = req.body as { url?: string; token?: string };
