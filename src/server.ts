@@ -1521,6 +1521,45 @@ app.get('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin
   }
 });
 
+/* ── Criar variante de um produto no EvoAI CRM (proxy) ──────────── */
+app.post('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin, async (req, res) => {
+  const { productId } = req.params;
+  const { name, sku, price_override, stock_quantity, position, attributes_data } = req.body as {
+    name?: string; sku?: string; price_override?: number | null;
+    stock_quantity?: number | null; position?: number | null; attributes_data?: Record<string, unknown>;
+  };
+  if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome da variante é obrigatório.' }); return; }
+  try {
+    const cfg = await getEvoCRMConfig();
+    if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
+    const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants`;
+    console.log(`[EVO CRM] POST ${url}`);
+    const r    = await fetch(url, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', 'api_access_token': cfg.token },
+      body   : JSON.stringify({
+        variant: {
+          name           : name.trim(),
+          sku            : sku?.trim()                                  || null,
+          price_override : price_override  != null ? Number(price_override)  : null,
+          stock_quantity : stock_quantity  != null ? Number(stock_quantity)  : null,
+          position       : position        != null ? Number(position)        : null,
+          attributes_data: attributes_data || {},
+        },
+      }),
+    });
+    const json = await r.json() as Record<string, unknown>;
+    console.log(`[EVO CRM] POST variants response (${r.status}):`, JSON.stringify(json));
+    if (!r.ok) {
+      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao criar variante.' });
+      return;
+    }
+    res.status(201).json({ success: true, data: json });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Salvar config EvoAI CRM ────────────────────────────────────── */
 app.post('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res) => {
   const { url, token } = req.body as { url?: string; token?: string };
