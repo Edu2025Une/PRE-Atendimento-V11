@@ -5048,7 +5048,7 @@
     /* ─── MONITOR ─── */
     let _monitorPollTimer = null;
     let _monitorCdTimer   = null;
-    let _monitorCdSecs    = 120;
+    let _monitorCdSecs    = 600;
     const _monitorFails   = {};
 
     /* ── Estado anterior por instância (para detectar transições) ── */
@@ -5061,24 +5061,34 @@
     function _playMonBeep() {
       if (_monAlertSilenced || !_monHasInteracted || document.hidden) return;
       try {
-        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.45);
-      } catch { /* browser policy — silencia silenciosamente */ }
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const beepAt = (t, freq) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+          osc.start(t);
+          osc.stop(t + 0.35);
+        };
+        const now = ctx.currentTime;
+        beepAt(now,        880);
+        beepAt(now + 0.45, 880);
+        beepAt(now + 0.90, 660);
+      } catch { /* browser policy */ }
     }
 
-    function _showMonAlert(names) {
+    function _showMonAlert(names, type) {
       if (_monAlertSilenced || _monAlertShown) return;
       _monAlertShown = true;
       const overlay = document.getElementById('monitor-alert-overlay');
+      const title   = document.getElementById('monitor-alert-title');
+      title.textContent = type === 'error'
+        ? '🔴 Erro na instância'
+        : '⚠️ Instância desconectada';
       document.getElementById('monitor-alert-names').textContent = names.join(', ');
       overlay.classList.remove('flashing');
       overlay.classList.add('active');
@@ -5099,7 +5109,13 @@
 
     function _updateMonitorCd() {
       const el = document.getElementById('monitor-countdown');
-      if (el) el.textContent = _monitorCdSecs > 0 ? `Atualiza em ${_monitorCdSecs}s` : 'Atualizando…';
+      if (!el) return;
+      if (_monitorCdSecs <= 0) { el.textContent = 'Atualizando…'; return; }
+      const m = Math.floor(_monitorCdSecs / 60);
+      const s = _monitorCdSecs % 60;
+      el.textContent = m > 0
+        ? `Atualiza em ${m}m ${String(s).padStart(2,'0')}s`
+        : `Atualiza em ${s}s`;
     }
 
     async function loadMonitor() {
@@ -5148,22 +5164,26 @@
               </div>`;
           }).join('');
 
-          /* ── Detecta transição connected → failure e dispara alerta ── */
+          /* ── Detecta transição connected → failure/error e dispara alerta ── */
           const _nowDisconnected = [];
+          const _nowError        = [];
           visible.forEach(inst => {
             const apiStatus = inst.status || (inst.connected ? 'connected' : 'disconnected');
-            const cur  = apiStatus === 'connected' ? 'connected' : 'failure';
+            const cur  = apiStatus === 'connected' ? 'connected'
+                       : apiStatus === 'error'     ? 'error' : 'failure';
             const prev = _monitorPrevState[inst.name];
-            if (cur !== 'connected' && prev === 'connected') _nowDisconnected.push(inst.name);
+            if (cur === 'error'    && prev === 'connected') _nowError.push(inst.name);
+            if (cur === 'failure'  && prev === 'connected') _nowDisconnected.push(inst.name);
             _monitorPrevState[inst.name] = cur;
           });
-          if (_nowDisconnected.length) _showMonAlert(_nowDisconnected);
+          if (_nowError.length)        _showMonAlert(_nowError,        'error');
+          else if (_nowDisconnected.length) _showMonAlert(_nowDisconnected, 'disconnect');
         }
 
         const at = document.getElementById('monitor-checked-at');
         if (at && j.checkedAt) at.textContent = `Última verificação: ${new Date(j.checkedAt).toLocaleString('pt-BR')}`;
 
-        _monitorCdSecs = 120;
+        _monitorCdSecs = 600;
         _updateMonitorCd();
       } catch {
         grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Erro ao carregar monitor.</div>`;
@@ -5173,9 +5193,9 @@
     function _startMonitorPoll() {
       clearInterval(_monitorPollTimer);
       clearInterval(_monitorCdTimer);
-      _monitorCdSecs = 120;
+      _monitorCdSecs = 600;
       _updateMonitorCd();
-      _monitorPollTimer = setInterval(loadMonitor, 120000);
+      _monitorPollTimer = setInterval(loadMonitor, 600000);
       _monitorCdTimer   = setInterval(() => {
         _monitorCdSecs = Math.max(0, _monitorCdSecs - 1);
         _updateMonitorCd();
