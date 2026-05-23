@@ -55,6 +55,10 @@ function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
+function signEmbedToken(payload: JwtPayload): string {
+  return jwt.sign({ ...payload, embed: true }, JWT_SECRET, { expiresIn: '30d' });
+}
+
 /* ── Middleware de autenticação JWT ─────────────────────────────────── */
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const auth = req.headers.authorization;
@@ -145,6 +149,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+/* Permitir embedding em iframe (X-Frame-Options + CSP) */
+app.use((_req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Content-Security-Policy', "frame-ancestors *");
+  next();
+});
+
 /* Anti-cache para HTML */
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/') {
@@ -158,6 +169,56 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, '../public')));
 
 /* ── Config ─────────────────────────────────────────────────────────── */
+/* ── Bridge de embed: injeta sessão via localStorage e redireciona ── */
+app.get('/embed', (req, res) => {
+  const token = (req.query.t as string || '').trim();
+  if (!token) { res.redirect('/'); return; }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload & { embed?: boolean };
+    const session = JSON.stringify({
+      userId    : payload.userId,
+      email     : payload.email,
+      role      : payload.role,
+      name      : payload.name,
+      tenantId  : payload.tenantId,
+    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<script>
+try {
+  localStorage.setItem('pa_jwt', ${JSON.stringify(token)});
+  localStorage.setItem('pa_session', ${JSON.stringify(session)});
+} catch(e) {}
+window.location.replace('/dashboard.html');
+</script></head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1117;color:#94a3b8">
+  <span>Carregando…</span>
+</body></html>`);
+  } catch {
+    res.redirect('/');
+  }
+});
+
+/* ── Gerar token de embed (30 dias) ────────────────────────────────── */
+app.get('/api/admin/embed-token', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user  = req.user!;
+    const token = signEmbedToken({
+      userId  : user.userId,
+      email   : user.email,
+      role    : user.role,
+      name    : user.name,
+      tenantId: user.tenantId,
+    });
+    const host     = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const baseUrl  = `${protocol}://${host}`;
+    res.json({ success: true, token, embedUrl: `${baseUrl}/embed?t=${token}` });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 app.get('/api/config', (_req, res) => {
   const supabaseUrl     = process.env.SUPABASE_URL || '';
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';

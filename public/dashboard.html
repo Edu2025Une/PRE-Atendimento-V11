@@ -3262,6 +3262,30 @@
 
             <div id="crm-test-result" style="display:none;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:0.55rem;font-size:0.82rem;font-weight:500"></div>
 
+            <!-- ── Link de Embed ── -->
+            <div style="margin-bottom:1rem;padding:0.85rem 1rem;background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.25);border-radius:0.65rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.55rem">
+                <span style="font-size:0.82rem;font-weight:600;color:#a78bfa">🔗 Link de Embed (iframe sem login)</span>
+                <button id="btn-gen-embed" onclick="generateEmbedLink()"
+                  style="font-size:0.75rem;padding:0.3rem 0.75rem;border-radius:0.4rem;border:1px solid rgba(139,92,246,0.4);color:#a78bfa;background:transparent;cursor:pointer;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(139,92,246,0.15)'" onmouseout="this.style.background='transparent'">
+                  ⚙️ Gerar Link
+                </button>
+              </div>
+              <div id="embed-link-wrap" style="display:none">
+                <div style="display:flex;gap:0.4rem;align-items:center">
+                  <input id="embed-link-input" readonly type="text"
+                    style="flex:1;padding:0.4rem 0.6rem;border-radius:0.4rem;border:1px solid rgba(139,92,246,0.3);background:var(--bg);color:var(--tx2);font-size:0.73rem;font-family:monospace;min-width:0"/>
+                  <button onclick="copyEmbedLink()"
+                    style="padding:0.4rem 0.7rem;border-radius:0.4rem;border:1px solid rgba(139,92,246,0.4);color:#a78bfa;background:transparent;cursor:pointer;font-size:0.8rem;white-space:nowrap"
+                    onmouseover="this.style.background='rgba(139,92,246,0.15)'" onmouseout="this.style.background='transparent'">
+                    📋 Copiar
+                  </button>
+                </div>
+                <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--tx4)">⏳ Válido por 30 dias. Cole como URL da "Nova Aplicação" no seu CRM.</div>
+              </div>
+            </div>
+
             <div style="display:flex;gap:0.75rem">
               <button class="btn" onclick="saveCRMConfig()"
                 style="flex:1;background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 3px 10px rgba(8,145,178,0.3)">
@@ -5685,6 +5709,38 @@
         btnEl.textContent = '🔀 Variantes';
         btnEl.disabled    = false;
       }
+    }
+
+    /* ── Gerar Link de Embed ─────────────────────────────────────── */
+    async function generateEmbedLink() {
+      const btn  = document.getElementById('btn-gen-embed');
+      const wrap = document.getElementById('embed-link-wrap');
+      const inp  = document.getElementById('embed-link-input');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando…'; }
+      try {
+        const res  = await fetch('/api/admin/embed-token', { headers: getAuthHeaders() });
+        const json = await res.json();
+        if (json.success && json.embedUrl) {
+          if (inp)  inp.value          = json.embedUrl;
+          if (wrap) wrap.style.display = '';
+          showToast('✅ Link de embed gerado! Cole no seu CRM.', 'ok');
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao gerar link.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro de conexão.', 'err'); }
+      finally {
+        if (btn) { btn.disabled = false; btn.textContent = '⚙️ Gerar Link'; }
+      }
+    }
+
+    function copyEmbedLink() {
+      const inp = document.getElementById('embed-link-input');
+      if (!inp?.value) return;
+      navigator.clipboard.writeText(inp.value).then(() => showToast('📋 Link copiado!', 'ok')).catch(() => {
+        inp.select();
+        document.execCommand('copy');
+        showToast('📋 Link copiado!', 'ok');
+      });
     }
 
     /* ── Testar Token EvoAI CRM ───────────────────────────────────── */
