@@ -5365,7 +5365,7 @@
               <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem">
                 ${avail ? `<span style="font-size:0.72rem;color:var(--tx4)">${availMap[avail] || avail}</span>` : ''}
                 ${colName ? `<span style="font-size:0.72rem;color:var(--tx4)">📂 ${escHtml(colName)}</span>` : ''}
-                ${metaId ? `<span style="font-size:0.7rem;color:var(--tx4);font-family:monospace" title="Meta Product ID">🏷 ${escHtml(metaId)}</span>` : '<span style="font-size:0.7rem;color:#f59e0b">⚠️ Não sincronizado com Meta</span>'}
+                ${metaId ? `<span style="font-size:0.7rem;color:#10b981;font-family:monospace" title="EvoAI CRM Product ID">🤖 CRM: ${escHtml(metaId)}</span>` : '<span style="font-size:0.7rem;color:var(--tx4)">💾 Local</span>'}
               </div>
             </div>
             <button onclick="deleteItem('${it.id}','${escHtml(it.name).replace(/'/g,"\\'")}') "
@@ -5409,7 +5409,7 @@
       } catch { showToast('❌ Erro ao criar coleção.', 'err'); }
     }
 
-    /* ── Salvar Produto (local + Meta opcional) ───────────────────── */
+    /* ── Salvar Produto (local + EvoAI CRM opcional) ─────────────── */
     async function saveItem() {
       const name          = document.getElementById('item-name').value.trim();
       const desc          = document.getElementById('item-desc').value.trim();

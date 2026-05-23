@@ -1271,7 +1271,7 @@ app.get('/api/catalog/items', requireAuth, async (req, res) => {
   try {
     let q = supabaseAdmin
       .from('catalog_items')
-      .select('id, name, description, price, collection_id, created_at, catalog_collections(name)')
+      .select('id, name, description, price, currency, image_url, availability, meta_product_id, collection_id, created_at, catalog_collections(name)')
       .order('created_at', { ascending: true });
     if (!isAdmin) {
       if (user.tenantId) q = q.eq('tenant_id', user.tenantId);
