@@ -5683,14 +5683,16 @@
 
     /* ── Salvar EvoAI CRM Config ──────────────────────────────────── */
     async function saveCRMConfig() {
-      const url   = document.getElementById('crm-url').value.trim();
-      const token = document.getElementById('crm-token').value.trim();
-      if (!url)   { showToast('❌ URL do EvoAI CRM é obrigatória.', 'err'); return; }
-      if (!token) { showToast('❌ API Token é obrigatório.', 'err'); return; }
+      const url        = document.getElementById('crm-url').value.trim();
+      const token      = document.getElementById('crm-token').value.trim();
+      const tokenSaved = document.getElementById('crm-token').placeholder.includes('salvo');
+      if (!url) { showToast('❌ URL do EvoAI CRM é obrigatória.', 'err'); return; }
+      if (!token && !tokenSaved) { showToast('❌ API Token é obrigatório.', 'err'); return; }
+      const body = token ? { url, token } : { url };
       try {
         const res  = await fetch('/api/admin/config/evo-crm', {
           method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, token }),
+          body: JSON.stringify(body),
         });
         const json = await res.json();
         if (json.success) {

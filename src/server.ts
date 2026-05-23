@@ -1622,20 +1622,30 @@ app.post('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res
   const { url, token } = req.body as { url?: string; token?: string };
   const cleanUrl   = url?.trim()   || '';
   const cleanToken = token?.trim() || '';
-  if (!cleanUrl || !cleanToken) {
-    res.status(400).json({ success: false, error: 'URL e API Token são obrigatórios.' }); return;
+  if (!cleanUrl) {
+    res.status(400).json({ success: false, error: 'URL do EvoAI CRM é obrigatória.' }); return;
   }
   try { new URL(cleanUrl); } catch {
     res.status(400).json({ success: false, error: 'URL inválida. Ex: https://api.evoai.app' }); return;
   }
   try {
-    const now = new Date().toISOString();
+    const now  = new Date().toISOString();
+    const rows: { key: string; value: string; updated_at: string }[] = [
+      { key: 'evo_crm_url', value: cleanUrl, updated_at: now },
+    ];
+    if (cleanToken) {
+      rows.push({ key: 'evo_crm_token', value: cleanToken, updated_at: now });
+    } else {
+      /* token omitido → verificar se já existe um salvo */
+      const { data: existing } = await supabaseAdmin
+        .from('system_config').select('value').eq('key', 'evo_crm_token').single();
+      if (!(existing as any)?.value) {
+        res.status(400).json({ success: false, error: 'API Token é obrigatório na primeira configuração.' }); return;
+      }
+    }
     const { error } = await supabaseAdmin
       .from('system_config')
-      .upsert([
-        { key: 'evo_crm_url',   value: cleanUrl,   updated_at: now },
-        { key: 'evo_crm_token', value: cleanToken,  updated_at: now },
-      ], { onConflict: 'key' });
+      .upsert(rows, { onConflict: 'key' });
     if (error) { res.status(500).json({ success: false, error: error.message }); return; }
     res.json({ success: true });
   } catch (err: unknown) {
