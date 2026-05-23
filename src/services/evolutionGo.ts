@@ -8,7 +8,7 @@ export interface EvolutionResponse {
 
 /* ── Helper genérico ── */
 async function callApi(
-  method:       'GET' | 'POST' | 'DELETE',
+  method:       'GET' | 'POST' | 'DELETE' | 'PUT',
   path:         string,
   body?:        object,
   overrideUrl?: string,
@@ -212,7 +212,71 @@ export async function getProfilePicture(
   return callApi('GET', '/user/profilePicture', undefined, overrideUrl, instanceToken);
 }
 
-/* ── 10. Deletar instância ───────────────────────────────────────────
+/* ── 10. Reconnect instância (atualiza webhook) ──────────────────────
+   POST /instance/reconnect  |  Header: apikey: <token da instância>
+   Body: ConnectStruct (webhookUrl, subscribe, rabbitmqEnable, websocketEnable, natsEnable)
+*/
+export async function reconnectInstance(
+  instanceToken: string,
+  overrideUrl?:  string,
+  opts?: {
+    webhookUrl?:      string;
+    subscribe?:       string[];
+    rabbitmqEnable?:  string;
+    websocketEnable?: string;
+    natsEnable?:      string;
+  },
+): Promise<EvolutionResponse> {
+  if (!instanceToken) {
+    return { success: false, error: 'Token da instância não fornecido.' };
+  }
+  return callApi('POST', '/instance/reconnect', opts ?? {}, overrideUrl, instanceToken);
+}
+
+/* ── 11. Buscar configurações avançadas da instância ─────────────────
+   GET /instance/{instanceId}/advanced-settings  |  Header: apikey: GLOBAL_API_KEY
+*/
+export async function getAdvancedSettings(
+  instanceUuid: string,
+  overrideUrl?: string,
+  overrideKey?: string,
+): Promise<EvolutionResponse> {
+  return callApi(
+    'GET',
+    `/instance/${encodeURIComponent(instanceUuid)}/advanced-settings`,
+    undefined,
+    overrideUrl,
+    overrideKey,
+  );
+}
+
+/* ── 12. Atualizar configurações avançadas da instância ──────────────
+   PUT /instance/{instanceId}/advanced-settings  |  Header: apikey: GLOBAL_API_KEY
+   Body: AdvancedSettings { alwaysOnline, rejectCall, readMessages, ignoreGroups, ignoreStatus, msgRejectCall }
+*/
+export async function updateAdvancedSettings(
+  instanceUuid: string,
+  settings: {
+    alwaysOnline?:  boolean;
+    rejectCall?:    boolean;
+    readMessages?:  boolean;
+    ignoreGroups?:  boolean;
+    ignoreStatus?:  boolean;
+    msgRejectCall?: string;
+  },
+  overrideUrl?: string,
+  overrideKey?: string,
+): Promise<EvolutionResponse> {
+  return callApi(
+    'PUT',
+    `/instance/${encodeURIComponent(instanceUuid)}/advanced-settings`,
+    settings,
+    overrideUrl,
+    overrideKey,
+  );
+}
+
+/* ── 13. Deletar instância ───────────────────────────────────────────
    DELETE /instance/delete/{instanceId}  |  Header: apikey: GLOBAL_API_KEY
 */
 export async function deleteInstance(

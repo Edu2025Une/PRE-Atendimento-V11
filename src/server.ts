@@ -21,6 +21,8 @@ import {
   getAllInstances,
   pairInstance,
   getProfilePicture,
+  reconnectInstance,
+  updateAdvancedSettings,
 } from './services/evolutionGo.js';
 import { supabaseAdmin } from './services/supabase.js';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from './services/authService.js';
@@ -874,6 +876,8 @@ app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
     if (error || !inst) { res.status(404).json({ success: false, error: 'Instância não encontrada.' }); return; }
     const meta = ((inst.metadata as Record<string, unknown>) || {}) as Record<string, unknown>;
     meta.webhook = { url: url || '', events: events || [], rabbitmq: rabbitmq || 'default', websocket: websocket || 'default', nats: nats || 'default' };
+
+    /* Salvar no Supabase */
     let upQuery = supabaseAdmin.from('instances').update({ metadata: meta }).eq('instance_name', name);
     if (!isAdmin) {
       if (user.tenantId) upQuery = upQuery.eq('tenant_id', user.tenantId);
@@ -881,6 +885,24 @@ app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
     }
     const { error: upErr } = await upQuery;
     if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
+
+    /* Chamar EvoGo: POST /instance/reconnect com novos parâmetros de webhook */
+    const instanceToken = extractInstanceToken(meta);
+    if (instanceToken) {
+      try {
+        const _evo = await getEvoGoConfig();
+        await reconnectInstance(instanceToken, _evo.url, {
+          webhookUrl:      url || '',
+          subscribe:       events || [],
+          rabbitmqEnable:  rabbitmq  === 'enabled' ? 'true' : rabbitmq  === 'disabled' ? 'false' : '',
+          websocketEnable: websocket === 'enabled' ? 'true' : websocket === 'disabled' ? 'false' : '',
+          natsEnable:      nats      === 'enabled' ? 'true' : nats      === 'disabled' ? 'false' : '',
+        });
+      } catch (evoErr) {
+        console.warn('[Webhook] EvoGo reconnect falhou (salvo localmente):', (evoErr as Error).message);
+      }
+    }
+
     res.json({ success: true });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
@@ -909,6 +931,8 @@ app.post('/api/instances/:name/advanced', requireAuth, async (req, res) => {
       alwaysOnline: !!alwaysOnline, rejectCall: !!rejectCall,
       readMessages: !!readMessages, ignoreGroups: !!ignoreGroups, ignoreStatus: !!ignoreStatus,
     };
+
+    /* Salvar no Supabase */
     let upQuery = supabaseAdmin.from('instances').update({ metadata: meta }).eq('instance_name', name);
     if (!isAdmin) {
       if (user.tenantId) upQuery = upQuery.eq('tenant_id', user.tenantId);
@@ -916,6 +940,26 @@ app.post('/api/instances/:name/advanced', requireAuth, async (req, res) => {
     }
     const { error: upErr } = await upQuery;
     if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
+
+    /* Chamar EvoGo: PUT /instance/{uuid}/advanced-settings */
+    const createData = (meta.create as Record<string, unknown>)?.data as Record<string, unknown> | undefined
+                    || (meta.data as Record<string, unknown> | undefined);
+    const instanceUuid = (createData?.id as string) || '';
+    if (instanceUuid) {
+      try {
+        const _evo = await getEvoGoConfig();
+        await updateAdvancedSettings(instanceUuid, {
+          alwaysOnline:  !!alwaysOnline,
+          rejectCall:    !!rejectCall,
+          readMessages:  !!readMessages,
+          ignoreGroups:  !!ignoreGroups,
+          ignoreStatus:  !!ignoreStatus,
+        }, _evo.url, _evo.key);
+      } catch (evoErr) {
+        console.warn('[Advanced] EvoGo update falhou (salvo localmente):', (evoErr as Error).message);
+      }
+    }
+
     res.json({ success: true });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
