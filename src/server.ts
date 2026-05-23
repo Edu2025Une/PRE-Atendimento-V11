@@ -1439,11 +1439,12 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
   const user = req.user!;
   const {
     name, description, price, image_url, availability, collection_id,
-    kind, sku, purchase_url, stock_quantity,
+    kind, sku, purchase_url, stock_quantity, status,
   } = req.body as {
     name?: string; description?: string; price?: number | null;
     image_url?: string; availability?: string; collection_id?: string | null;
     kind?: string; sku?: string; purchase_url?: string; stock_quantity?: number | null;
+    status?: string;
   };
 
   if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
@@ -1470,16 +1471,17 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
 
         const payload: Record<string, unknown> = {
           product: {
-            name         : name.trim(),
+            name          : name.trim(),
             slug,
-            kind         : kind || 'physical',
-            description  : description?.trim() || null,
-            sku          : sku?.trim()          || null,
-            default_price: Number(price),
-            currency     : 'BRL',
-            purchase_url : purchase_url?.trim() || null,
+            kind          : kind          || 'physical',
+            description   : description?.trim()     || null,
+            sku           : sku?.trim()             || null,
+            default_price : Number(price),
+            currency      : 'BRL',
+            purchase_url  : purchase_url?.trim()    || null,
+            status        : status                  || 'active',
             stock_quantity: stock_quantity != null ? Number(stock_quantity) : null,
-            metadata     : { image_url: image_url?.trim() || null },
+            metadata      : { image_url: image_url?.trim() || null },
           },
           labels: [],
         };

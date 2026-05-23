@@ -3124,7 +3124,7 @@
                 </div>
               </div>
 
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;margin-bottom:0.75rem">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.65rem;margin-bottom:0.75rem">
                 <div>
                   <label for="item-sku">SKU <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
                   <div class="field-wrap">
@@ -3135,6 +3135,16 @@
                   <label for="item-stock">Estoque <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
                   <div class="field-wrap">
                     <input type="number" id="item-stock" placeholder="Ex: 100" min="0" step="1" autocomplete="off" />
+                  </div>
+                </div>
+                <div>
+                  <label for="item-status">Status</label>
+                  <div class="field-wrap">
+                    <select id="item-status" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                      <option value="active">Ativo</option>
+                      <option value="inactive">Inativo</option>
+                      <option value="draft">Rascunho</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -5408,6 +5418,7 @@
       const availability  = document.getElementById('item-availability').value;
       const collectionId  = document.getElementById('item-collection').value;
       const kind          = document.getElementById('item-kind').value;
+      const status        = document.getElementById('item-status').value;
       const sku           = document.getElementById('item-sku').value.trim();
       const stockRaw      = document.getElementById('item-stock').value.trim();
       const purchaseUrl   = document.getElementById('item-purchase-url').value.trim();
@@ -5427,7 +5438,7 @@
             name, description: desc || null, price,
             image_url: imageUrl || null, availability,
             collection_id: collectionId || null,
-            kind, sku: sku || null, stock_quantity,
+            kind, status, sku: sku || null, stock_quantity,
             purchase_url: purchaseUrl || null,
           }),
         });
@@ -5447,6 +5458,7 @@
           document.getElementById('item-collection').value    = '';
           document.getElementById('item-availability').value  = 'in stock';
           document.getElementById('item-kind').value          = 'physical';
+          document.getElementById('item-status').value        = 'active';
           document.getElementById('item-sku').value           = '';
           document.getElementById('item-stock').value         = '';
           document.getElementById('item-purchase-url').value  = '';
