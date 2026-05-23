@@ -1521,6 +1521,42 @@ app.get('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin
   }
 });
 
+/* ── Editar variante de um produto no EvoAI CRM (proxy) ─────────── */
+app.patch('/api/admin/crm/products/:productId/variants/:variantId', requireAuth, requireAdmin, async (req, res) => {
+  const { productId, variantId } = req.params;
+  const { name, sku, price_override, stock_quantity, position, attributes_data } = req.body as {
+    name?: string; sku?: string; price_override?: number | null;
+    stock_quantity?: number | null; position?: number | null; attributes_data?: Record<string, unknown>;
+  };
+  try {
+    const cfg = await getEvoCRMConfig();
+    if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
+    const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants/${variantId}`;
+    console.log(`[EVO CRM] PATCH ${url}`);
+    const payload: Record<string, unknown> = {};
+    if (name            !== undefined) payload.name            = name?.trim() || null;
+    if (sku             !== undefined) payload.sku             = sku?.trim()  || null;
+    if (price_override  !== undefined) payload.price_override  = price_override  != null ? Number(price_override)  : null;
+    if (stock_quantity  !== undefined) payload.stock_quantity  = stock_quantity  != null ? Number(stock_quantity)  : null;
+    if (position        !== undefined) payload.position        = position        != null ? Number(position)        : null;
+    if (attributes_data !== undefined) payload.attributes_data = attributes_data;
+    const r    = await fetch(url, {
+      method : 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'api_access_token': cfg.token },
+      body   : JSON.stringify({ variant: payload }),
+    });
+    const json = await r.json() as Record<string, unknown>;
+    console.log(`[EVO CRM] PATCH variant response (${r.status}):`, JSON.stringify(json));
+    if (!r.ok) {
+      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao editar variante.' });
+      return;
+    }
+    res.json({ success: true, data: json });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Criar variante de um produto no EvoAI CRM (proxy) ──────────── */
 app.post('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin, async (req, res) => {
   const { productId } = req.params;

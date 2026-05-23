@@ -5408,19 +5408,30 @@
     function renderVariantsPanel(productId, variants) {
       const rows = variants.length
         ? `<div style="border:1px solid var(--border);border-radius:0.5rem;overflow:hidden;margin-bottom:0.65rem">
-            <div style="display:grid;grid-template-columns:1fr 88px 72px 80px;background:var(--bg);padding:0.35rem 0.75rem;border-bottom:1px solid var(--border);gap:0.5rem">
+            <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 28px;background:var(--bg);padding:0.35rem 0.75rem;border-bottom:1px solid var(--border);gap:0.5rem">
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase">Nome</span>
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Preço</span>
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Estoque</span>
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase">SKU</span>
+              <span></span>
             </div>
-            ${variants.map((v, i) => `
-              <div style="display:grid;grid-template-columns:1fr 88px 72px 80px;padding:0.4rem 0.75rem;gap:0.5rem;align-items:center${i < variants.length - 1 ? ';border-bottom:1px solid var(--border2)' : ''}">
-                <span style="font-size:0.78rem;color:var(--tx1);font-weight:600">${escHtml(v.name || '—')}</span>
-                <span style="font-size:0.75rem;color:#25D366;text-align:right">${v.price_override != null ? 'R$ ' + parseFloat(v.price_override).toFixed(2).replace('.',',') : '—'}</span>
-                <span style="font-size:0.75rem;color:var(--tx3);text-align:right">${v.stock_quantity != null ? v.stock_quantity : '—'}</span>
-                <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">${v.sku ? escHtml(v.sku) : '—'}</span>
-              </div>`).join('')}
+            ${variants.map((v, i) => {
+              const vid = escHtml(String(v.id || ''));
+              return `
+              <div id="vrow-${productId}-${vid}" style="padding:0.4rem 0.75rem;${i < variants.length - 1 ? 'border-bottom:1px solid var(--border2)' : ''}">
+                <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 28px;gap:0.5rem;align-items:center">
+                  <span style="font-size:0.78rem;color:var(--tx1);font-weight:600">${escHtml(v.name || '—')}</span>
+                  <span style="font-size:0.75rem;color:#25D366;text-align:right">${v.price_override != null ? 'R$ ' + parseFloat(v.price_override).toFixed(2).replace('.',',') : '—'}</span>
+                  <span style="font-size:0.75rem;color:var(--tx3);text-align:right">${v.stock_quantity != null ? v.stock_quantity : '—'}</span>
+                  <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">${v.sku ? escHtml(v.sku) : '—'}</span>
+                  <button onclick="openVariantEdit('${productId}','${vid}',${JSON.stringify(escHtml(v.name||''))},${JSON.stringify(escHtml(v.sku||''))},${v.price_override!=null?v.price_override:'null'},${v.stock_quantity!=null?v.stock_quantity:'null'},${v.position!=null?v.position:'null'})"
+                    title="Editar variante"
+                    style="padding:0.2rem 0.3rem;border-radius:0.35rem;border:1px solid var(--border);background:transparent;color:var(--tx3);cursor:pointer;font-size:0.75rem;line-height:1"
+                    onmouseover="this.style.background='rgba(139,92,246,0.1)';this.style.color='#a78bfa'" onmouseout="this.style.background='transparent';this.style.color='var(--tx3)'">✏️</button>
+                </div>
+                <div id="vedit-${productId}-${vid}" style="display:none;margin-top:0.5rem"></div>
+              </div>`;
+            }).join('')}
           </div>`
         : `<div style="font-size:0.75rem;color:var(--tx4);padding:0.35rem 0 0.6rem;font-style:italic">Nenhuma variante cadastrada ainda.</div>`;
 
@@ -5461,6 +5472,102 @@
             💾 Salvar Variante
           </button>
         </div>`;
+    }
+
+    /* ── Abrir form de edição inline de uma variante ─────────────── */
+    function openVariantEdit(productId, variantId, name, sku, price, stock, position) {
+      /* fechar qualquer outro form de edição aberto no mesmo produto */
+      document.querySelectorAll(`[id^="vedit-${productId}-"]`).forEach(el => {
+        if (el.id !== `vedit-${productId}-${variantId}`) el.style.display = 'none';
+      });
+      const panel = document.getElementById(`vedit-${productId}-${variantId}`);
+      if (!panel) return;
+      if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      panel.innerHTML = `
+        <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);border-radius:0.45rem;padding:0.6rem 0.75rem">
+          <div style="font-size:0.75rem;font-weight:600;color:#a78bfa;margin-bottom:0.45rem">✏️ Editar Variante</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-bottom:0.45rem">
+            <div>
+              <label style="font-size:0.7rem;color:var(--tx3)">Nome <span style="color:#f87171">*</span></label>
+              <input id="ven-${productId}-${variantId}" type="text" value="${name}"
+                style="width:100%;padding:0.38rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.78rem;box-sizing:border-box" autocomplete="off"/>
+            </div>
+            <div>
+              <label style="font-size:0.7rem;color:var(--tx3)">SKU</label>
+              <input id="vesk-${productId}-${variantId}" type="text" value="${sku}"
+                style="width:100%;padding:0.38rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.78rem;box-sizing:border-box" autocomplete="off"/>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem;margin-bottom:0.55rem">
+            <div>
+              <label style="font-size:0.7rem;color:var(--tx3)">Preço (R$)</label>
+              <input id="vepr-${productId}-${variantId}" type="number" value="${price != null ? price : ''}" min="0" step="0.01"
+                style="width:100%;padding:0.38rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.78rem;box-sizing:border-box" autocomplete="off"/>
+            </div>
+            <div>
+              <label style="font-size:0.7rem;color:var(--tx3)">Estoque</label>
+              <input id="vest-${productId}-${variantId}" type="number" value="${stock != null ? stock : ''}" min="0" step="1"
+                style="width:100%;padding:0.38rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.78rem;box-sizing:border-box" autocomplete="off"/>
+            </div>
+            <div>
+              <label style="font-size:0.7rem;color:var(--tx3)">Posição</label>
+              <input id="vepo-${productId}-${variantId}" type="number" value="${position != null ? position : ''}" min="1" step="1"
+                style="width:100%;padding:0.38rem 0.55rem;border-radius:0.4rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.78rem;box-sizing:border-box" autocomplete="off"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.45rem">
+            <button id="vebtn-${productId}-${variantId}" onclick="updateVariant('${productId}','${variantId}')"
+              style="flex:1;padding:0.38rem;border-radius:0.4rem;border:none;background:linear-gradient(135deg,#7c3aed,#8b5cf6);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer">
+              💾 Salvar
+            </button>
+            <button onclick="document.getElementById('vedit-${productId}-${variantId}').style.display='none'"
+              style="padding:0.38rem 0.75rem;border-radius:0.4rem;border:1px solid var(--border);background:transparent;color:var(--tx3);font-size:0.78rem;cursor:pointer">
+              Cancelar
+            </button>
+          </div>
+        </div>`;
+    }
+
+    /* ── Enviar PATCH para atualizar variante no CRM ──────────────── */
+    async function updateVariant(productId, variantId) {
+      const name  = document.getElementById(`ven-${productId}-${variantId}`)?.value.trim();
+      const sku   = document.getElementById(`vesk-${productId}-${variantId}`)?.value.trim() || null;
+      const price = document.getElementById(`vepr-${productId}-${variantId}`)?.value.trim() || null;
+      const stock = document.getElementById(`vest-${productId}-${variantId}`)?.value.trim() || null;
+      const pos   = document.getElementById(`vepo-${productId}-${variantId}`)?.value.trim() || null;
+      if (!name) { showToast('❌ Nome da variante é obrigatório.', 'err'); return; }
+      const btn = document.getElementById(`vebtn-${productId}-${variantId}`);
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
+      try {
+        const res  = await fetch(`/api/admin/crm/products/${productId}/variants/${variantId}`, {
+          method : 'PATCH',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            name,
+            sku,
+            price_override : price != null && price !== '' ? parseFloat(price)   : null,
+            stock_quantity : stock != null && stock !== '' ? parseInt(stock, 10) : null,
+            position       : pos   != null && pos   !== '' ? parseInt(pos, 10)   : null,
+          }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Variante atualizada com sucesso!', 'ok');
+          /* fechar form e recarregar painel */
+          const editPanel = document.getElementById(`vedit-${productId}-${variantId}`);
+          if (editPanel) editPanel.style.display = 'none';
+          const varPanel = document.getElementById(`crm-variants-${productId}`);
+          if (varPanel) { varPanel.style.display = 'none'; }
+          const varBtns = document.querySelectorAll(`[onclick*="toggleCRMVariants('${productId}'"]`);
+          if (varBtns.length) varBtns[0].textContent = '🔀 Variantes';
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao atualizar variante.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro de conexão.', 'err'); }
+      finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar'; }
+      }
     }
 
     /* ── Salvar nova variante no CRM ──────────────────────────────── */
