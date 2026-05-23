@@ -1582,7 +1582,8 @@ app.post('/api/admin/crm/test-token', requireAuth, requireAdmin, async (req, res
     res.status(400).json({ success: false, error: 'URL inválida.' }); return;
   }
   try {
-    const testUrl = `${cleanUrl.replace(/\/$/, '')}/api/v1/profile`;
+    /* Testa em /api/v1/products?per_page=1 — endpoint real da API */
+    const testUrl = `${cleanUrl.replace(/\/$/, '')}/api/v1/products?per_page=1`;
     console.log(`[EVO CRM] TEST ${testUrl}`);
     const r = await fetch(testUrl, {
       headers : { 'api_access_token': cleanToken },
@@ -1594,17 +1595,16 @@ app.post('/api/admin/crm/test-token', requireAuth, requireAdmin, async (req, res
     const redirected = r.redirected ? ` (redirecionado para ${r.url})` : '';
     console.log(`[EVO CRM] TEST response: HTTP ${r.status}${redirected}, isHtml=${isHtml}, preview=${raw.slice(0,120)}`);
     if (r.status === 401 || r.status === 403) {
-      res.json({ success: false, error: `Token inválido ou sem permissão (HTTP ${r.status}).` }); return;
+      res.json({ success: false, error: `Token inválido ou sem permissão (HTTP ${r.status}). Verifique o token.` }); return;
     }
     if (!r.ok) {
-      const jsonMsg = (() => { try { return (JSON.parse(raw) as any)?.message; } catch { return null; } })();
-      const msg = jsonMsg || (isHtml ? `HTTP ${r.status} — servidor retornou HTML${redirected}. Verifique a URL.` : `HTTP ${r.status}`);
+      const jsonMsg = (() => { try { return (JSON.parse(raw) as any)?.message || (JSON.parse(raw) as any)?.error; } catch { return null; } })();
+      const msg = jsonMsg || (isHtml ? `HTTP ${r.status} — URL incorreta ou não é uma API EvoAI CRM${redirected}.` : `HTTP ${r.status} — verifique a URL.`);
       res.json({ success: false, error: msg }); return;
     }
     if (isHtml) {
-      res.json({ success: false, error: `Servidor retornou HTML (HTTP ${r.status})${redirected}. Verifique a URL do CRM.` }); return;
+      res.json({ success: false, error: `A URL configurada aponta para a interface web, não para a API. Verifique se a URL termina no domínio raiz da API (ex: https://api.seucrm.com).` }); return;
     }
-    /* tenta também /api/v1/products como fallback de confirmação */
     res.json({ success: true, message: `Conexão bem-sucedida! Token e URL válidos. (HTTP ${r.status})` });
   } catch (err: unknown) {
     const msg = (err as any)?.name === 'TimeoutError' ? 'Tempo limite excedido (8s). Verifique a URL.' : (err as Error).message;
