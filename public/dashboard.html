@@ -3077,6 +3077,10 @@
 
             <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
 
+              <div id="item-form-title" style="font-size:0.9rem;font-weight:700;color:var(--tx1);margin-bottom:0.85rem;padding-bottom:0.6rem;border-bottom:1px solid var(--border)">
+                ➕ Novo Produto
+              </div>
+
               <!-- Banner informativo: EvoAI CRM opcional -->
               <div id="meta-not-configured-warn" style="margin-bottom:1rem;padding:0.65rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:0.6rem;font-size:0.8rem;color:var(--tx3)">
                 💡 Sem EvoAI CRM configurado, os produtos serão salvos apenas localmente. <a href="#" onclick="showCatalogTab('crm');return false" style="color:#3b82f6;text-decoration:underline">Configurar EvoAI CRM</a>
@@ -3172,7 +3176,7 @@
 
               <div style="display:flex;gap:0.6rem">
                 <button class="btn" id="btn-save-item" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Salvar Produto</button>
-                <button class="btn" onclick="toggleAddItemForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+                <button class="btn" onclick="cancelEditItem()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
               </div>
             </div>
 
@@ -5239,6 +5243,9 @@
     });
 
     /* ─── CATÁLOGO ─── */
+    let _editingItemId  = null;
+    let _catalogItems   = [];
+
     function toggleAddCollectionForm() {
       const f = document.getElementById('add-collection-form');
       const visible = f.style.display !== 'none';
@@ -5350,29 +5357,37 @@
           el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛍️</div>Nenhum produto cadastrado ainda.</div>';
           return;
         }
+        _catalogItems = items;
         el.innerHTML = items.map(it => {
           const colName  = it.catalog_collections?.name || '';
           const price    = it.price != null ? `R$ ${parseFloat(it.price).toFixed(2).replace('.',',')}` : '';
-          const metaId   = it.meta_product_id || '';
+          const crmId    = it.meta_product_id || '';
           const avail    = it.availability || '';
           const availMap = { 'in stock':'🟢 Em estoque','out of stock':'🔴 Sem estoque','preorder':'🟡 Pré-venda','available for order':'🔵 Sob pedido','discontinued':'⚫ Descontinuado' };
           return `
           <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border2);gap:0.75rem">
-            ${it.image_url ? `<img src="${escHtml(it.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:0.5rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">` : ''}
+            ${it.image_url ? `<img src="${escHtml(it.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:0.5rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">` : '<div style="width:48px;height:48px;border-radius:0.5rem;flex-shrink:0;border:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🛍️</div>'}
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;color:var(--tx1);font-size:0.9rem">${escHtml(it.name)}${price ? ` <span style="color:#25D366;font-size:0.82rem">${price}</span>` : ''}</div>
-              ${it.description ? `<div style="font-size:0.78rem;color:var(--tx3);margin-top:2px">${escHtml(it.description)}</div>` : ''}
+              ${it.description ? `<div style="font-size:0.78rem;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(it.description)}</div>` : ''}
               <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem">
                 ${avail ? `<span style="font-size:0.72rem;color:var(--tx4)">${availMap[avail] || avail}</span>` : ''}
                 ${colName ? `<span style="font-size:0.72rem;color:var(--tx4)">📂 ${escHtml(colName)}</span>` : ''}
-                ${metaId ? `<span style="font-size:0.7rem;color:#10b981;font-family:monospace" title="EvoAI CRM Product ID">🤖 CRM: ${escHtml(metaId)}</span>` : '<span style="font-size:0.7rem;color:var(--tx4)">💾 Local</span>'}
+                ${crmId ? `<span style="font-size:0.7rem;color:#10b981;font-family:monospace" title="EvoAI CRM ID">🤖 CRM: ${escHtml(crmId)}</span>` : '<span style="font-size:0.7rem;color:var(--tx4)">💾 Local</span>'}
               </div>
             </div>
-            <button onclick="deleteItem('${it.id}','${escHtml(it.name).replace(/'/g,"\\'")}') "
-              style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;flex-shrink:0;transition:all 0.15s"
-              onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
-              🗑 Excluir
-            </button>
+            <div style="display:flex;flex-direction:column;gap:0.35rem;flex-shrink:0">
+              <button onclick="startEditItem('${it.id}')"
+                style="background:transparent;border:1px solid rgba(59,130,246,0.4);color:#60a5fa;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;transition:all 0.15s"
+                onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='transparent'">
+                ✏️ Editar
+              </button>
+              <button onclick="deleteItem('${it.id}','${escHtml(it.name).replace(/'/g,"\\'")}') "
+                style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;transition:all 0.15s"
+                onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
+                🗑 Excluir
+              </button>
+            </div>
           </div>`;
         }).join('');
       } catch (e) {
@@ -5432,49 +5447,65 @@
       const btn = document.getElementById('btn-save-item');
       if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
       try {
-        const res  = await fetch('/api/catalog/products', {
-          method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name, description: desc || null, price,
-            image_url: imageUrl || null, availability,
-            collection_id: collectionId || null,
-            kind, status, sku: sku || null, stock_quantity,
-            purchase_url: purchaseUrl || null,
-          }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          if (json.crm_synced) {
-            showToast(`✅ Produto salvo e sincronizado com EvoAI CRM! ID: ${json.crm_product_id}`, 'ok');
-          } else if (json.warning) {
-            showToast(`⚠️ Produto salvo localmente. CRM: ${json.warning}`, 'ok');
+        let res, json;
+        if (_editingItemId) {
+          /* ── Modo EDIÇÃO ── */
+          res  = await fetch(`/api/catalog/items/${_editingItemId}`, {
+            method: 'PUT', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name, description: desc || null, price,
+              image_url: imageUrl || null, availability,
+              collection_id: collectionId || null,
+            }),
+          });
+          json = await res.json();
+          if (json.success) {
+            showToast('✅ Produto atualizado com sucesso!', 'ok');
           } else {
-            showToast('✅ Produto salvo localmente.', 'ok');
+            showToast(`❌ ${json.error || 'Falha ao atualizar produto.'}`, 'err');
+            return;
           }
-          document.getElementById('item-name').value          = '';
-          document.getElementById('item-desc').value          = '';
-          document.getElementById('item-price').value         = '';
-          document.getElementById('item-image').value         = '';
-          document.getElementById('item-collection').value    = '';
-          document.getElementById('item-availability').value  = 'in stock';
-          document.getElementById('item-kind').value          = 'physical';
-          document.getElementById('item-status').value        = 'active';
-          document.getElementById('item-sku').value           = '';
-          document.getElementById('item-stock').value         = '';
-          document.getElementById('item-purchase-url').value  = '';
-          toggleAddItemForm();
-          loadItems();
         } else {
-          showToast(`❌ ${json.error || 'Falha ao salvar produto.'}`, 'err');
+          /* ── Modo CRIAÇÃO ── */
+          res  = await fetch('/api/catalog/products', {
+            method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name, description: desc || null, price,
+              image_url: imageUrl || null, availability,
+              collection_id: collectionId || null,
+              kind, status, sku: sku || null, stock_quantity,
+              purchase_url: purchaseUrl || null,
+            }),
+          });
+          json = await res.json();
+          if (json.success) {
+            if (json.crm_synced) {
+              showToast(`✅ Produto criado e sincronizado com EvoAI CRM! ID: ${json.crm_product_id}`, 'ok');
+            } else if (json.warning) {
+              showToast(`⚠️ Produto salvo localmente. CRM: ${json.warning}`, 'ok');
+            } else {
+              showToast('✅ Produto salvo localmente.', 'ok');
+            }
+          } else {
+            showToast(`❌ ${json.error || 'Falha ao salvar produto.'}`, 'err');
+            return;
+          }
         }
-      } catch { showToast('❌ Erro de conexão ao salvar produto.', 'err'); }
+        cancelEditItem();
+        loadItems();
+      } catch { showToast('❌ Erro de conexão.', 'err'); }
       finally {
-        if (btn) { btn.disabled = false; btn.textContent = '✅ Salvar Produto'; }
+        if (btn) { btn.disabled = false; btn.textContent = _editingItemId ? '💾 Salvar Alterações' : '✅ Salvar Produto'; }
       }
     }
 
     /* ── Abrir form de produto (verificar se EvoAI CRM está configurado) ─ */
     async function toggleAddItemForm() {
+      _editingItemId = null;
+      const titleEl = document.getElementById('item-form-title');
+      if (titleEl) titleEl.textContent = '➕ Novo Produto';
+      const btn = document.getElementById('btn-save-item');
+      if (btn) { btn.textContent = '✅ Salvar Produto'; btn.style.background = 'linear-gradient(135deg,#2563eb,#3b82f6)'; }
       const form = document.getElementById('add-item-form');
       const isHidden = form.style.display === 'none';
       form.style.display = isHidden ? '' : 'none';
@@ -5490,6 +5521,59 @@
           } catch { /* ignore */ }
         }
       }
+    }
+
+    /* ── Iniciar edição de produto ────────────────────────────────── */
+    function startEditItem(id) {
+      const it = _catalogItems.find(x => x.id === id);
+      if (!it) return;
+      _editingItemId = id;
+      populateCollectionSelect();
+
+      document.getElementById('item-name').value         = it.name        || '';
+      document.getElementById('item-desc').value         = it.description || '';
+      document.getElementById('item-price').value        = it.price       != null ? it.price : '';
+      document.getElementById('item-image').value        = it.image_url   || '';
+      document.getElementById('item-availability').value = it.availability || 'in stock';
+      document.getElementById('item-collection').value   = it.collection_id || '';
+      document.getElementById('item-kind').value         = 'physical';
+      document.getElementById('item-status').value       = 'active';
+      document.getElementById('item-sku').value          = '';
+      document.getElementById('item-stock').value        = '';
+      document.getElementById('item-purchase-url').value = '';
+
+      const titleEl = document.getElementById('item-form-title');
+      if (titleEl) titleEl.textContent = `✏️ Editar: ${it.name}`;
+      const btn = document.getElementById('btn-save-item');
+      if (btn) { btn.textContent = '💾 Salvar Alterações'; btn.style.background = 'linear-gradient(135deg,#059669,#10b981)'; }
+
+      const warn = document.getElementById('meta-not-configured-warn');
+      if (warn) warn.style.display = 'none';
+
+      const form = document.getElementById('add-item-form');
+      form.style.display = '';
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ── Cancelar edição / fechar form ───────────────────────────── */
+    function cancelEditItem() {
+      _editingItemId = null;
+      const titleEl = document.getElementById('item-form-title');
+      if (titleEl) titleEl.textContent = '➕ Novo Produto';
+      const btn = document.getElementById('btn-save-item');
+      if (btn) { btn.textContent = '✅ Salvar Produto'; btn.style.background = 'linear-gradient(135deg,#2563eb,#3b82f6)'; }
+      document.getElementById('item-name').value         = '';
+      document.getElementById('item-desc').value         = '';
+      document.getElementById('item-price').value        = '';
+      document.getElementById('item-image').value        = '';
+      document.getElementById('item-collection').value   = '';
+      document.getElementById('item-availability').value = 'in stock';
+      document.getElementById('item-kind').value         = 'physical';
+      document.getElementById('item-status').value       = 'active';
+      document.getElementById('item-sku').value          = '';
+      document.getElementById('item-stock').value        = '';
+      document.getElementById('item-purchase-url').value = '';
+      document.getElementById('add-item-form').style.display = 'none';
     }
 
     async function deleteCollection(id, name) {
@@ -5509,7 +5593,7 @@
     async function deleteItem(id, name) {
       openModal({
         icon: '🗑️', title: 'Excluir Produto',
-        desc: `O produto "${name}" será removido do banco. Para removê-lo do catálogo Meta, acesse o Commerce Manager.`,
+        desc: `O produto "${name}" será removido do banco local. Se estiver sincronizado com o EvoAI CRM, remova-o lá também manualmente.`,
         instanceName: name, btnClass: 'danger-delete', btnLabel: 'Excluir',
         onConfirm: async () => {
           const res  = await fetch(`/api/catalog/items/${id}`, { method: 'DELETE', headers: getAuthHeaders() });

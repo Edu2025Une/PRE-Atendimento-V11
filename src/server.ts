@@ -1312,6 +1312,40 @@ app.post('/api/catalog/items', requireAuth, async (req, res) => {
   }
 });
 
+/* ── Editar Item ────────────────────────────────────────────────── */
+app.put('/api/catalog/items/:id', requireAuth, async (req, res) => {
+  const { id }    = req.params;
+  const user      = req.user!;
+  const isAdmin   = user.role === 'admin';
+  const { name, description, price, availability, image_url, collection_id } = req.body as {
+    name?: string; description?: string; price?: number | null;
+    availability?: string; image_url?: string; collection_id?: string | null;
+  };
+  if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
+  if (price == null || isNaN(Number(price)) || Number(price) < 0) {
+    res.status(400).json({ success: false, error: 'Preço inválido.' }); return;
+  }
+  try {
+    let q = supabaseAdmin
+      .from('catalog_items')
+      .update({
+        name        : name.trim(),
+        description : description?.trim() || null,
+        price       : price ?? null,
+        availability: availability || 'in stock',
+        image_url   : image_url?.trim()  || null,
+        collection_id: collection_id     || null,
+      })
+      .eq('id', id);
+    if (!isAdmin) q = q.eq('created_by', user.userId);
+    const { data, error } = await q.select('id, name, description, price, availability, image_url, collection_id').single();
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Excluir Item ───────────────────────────────────────────────── */
 app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
