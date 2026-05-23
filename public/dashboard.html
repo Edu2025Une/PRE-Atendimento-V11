@@ -2792,7 +2792,10 @@
 
           <!-- Informações gerais -->
           <div class="is-section is-section-info">
-            <div class="is-section-title">Informações</div>
+            <div class="is-section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.35rem">
+              <span>Informações</span>
+              <span id="is-uuid" style="font-family:'Courier New',monospace;font-size:0.7rem;color:#25D366;font-weight:700;letter-spacing:0.01em;display:none"></span>
+            </div>
             <div class="is-info-grid">
               <!-- Coluna esquerda -->
               <div class="is-info-col">
@@ -4224,6 +4227,17 @@
       document.getElementById('is-token').dataset.raw     = token;
       document.getElementById('is-token').dataset.visible = '0';
       document.getElementById('is-token').textContent     = token !== '—' ? '•'.repeat(Math.min(token.length, 24)) : '—';
+
+      /* UUID do EvoGo — exibe em verde no cabeçalho da seção Informações */
+      const uuid    = createData.id || '';
+      const uuidEl  = document.getElementById('is-uuid');
+      if (uuid) {
+        uuidEl.textContent = 'token: ' + uuid;
+        uuidEl.style.display = 'inline';
+      } else {
+        uuidEl.textContent = '';
+        uuidEl.style.display = 'none';
+      }
 
       /* Número e nome do perfil (se disponíveis nos metadados) */
       const profileName = createData.profileName || createData.name || '—';
