@@ -886,12 +886,13 @@ app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
     const { error: upErr } = await upQuery;
     if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
 
-    /* Chamar EvoGo: POST /instance/reconnect com novos parâmetros de webhook */
+    /* Chamar EvoGo: POST /instance/connect com novos parâmetros de webhook
+       (não há endpoint separado de webhook — connect atualiza sem desconectar) */
     const instanceToken = extractInstanceToken(meta);
     if (instanceToken) {
       try {
         const _evo = await getEvoGoConfig();
-        await reconnectInstance(instanceToken, _evo.url, {
+        await connectInstance(instanceToken, _evo.url, {
           webhookUrl:      url || '',
           subscribe:       events || [],
           rabbitmqEnable:  rabbitmq  === 'enabled' ? 'true' : rabbitmq  === 'disabled' ? 'false' : '',
@@ -899,7 +900,7 @@ app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
           natsEnable:      nats      === 'enabled' ? 'true' : nats      === 'disabled' ? 'false' : '',
         });
       } catch (evoErr) {
-        console.warn('[Webhook] EvoGo reconnect falhou (salvo localmente):', (evoErr as Error).message);
+        console.warn('[Webhook] EvoGo connect falhou (salvo localmente):', (evoErr as Error).message);
       }
     }
 

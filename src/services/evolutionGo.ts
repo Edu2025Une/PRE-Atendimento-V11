@@ -104,10 +104,13 @@ export async function connectInstance(
   instanceToken: string,
   overrideUrl?:  string,
   opts?: {
-    immediate?:  boolean;
-    phone?:      string;
-    subscribe?:  string[];
-    webhookUrl?: string;
+    immediate?:       boolean;
+    phone?:           string;
+    subscribe?:       string[];
+    webhookUrl?:      string;
+    rabbitmqEnable?:  string;
+    websocketEnable?: string;
+    natsEnable?:      string;
   },
 ): Promise<EvolutionResponse> {
   if (!instanceToken) {
