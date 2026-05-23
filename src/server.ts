@@ -1521,6 +1521,27 @@ app.get('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin
   }
 });
 
+/* ── Deletar variante de um produto no EvoAI CRM (proxy) ────────── */
+app.delete('/api/admin/crm/products/:productId/variants/:variantId', requireAuth, requireAdmin, async (req, res) => {
+  const { productId, variantId } = req.params;
+  try {
+    const cfg = await getEvoCRMConfig();
+    if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
+    const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants/${variantId}`;
+    console.log(`[EVO CRM] DELETE ${url}`);
+    const r = await fetch(url, { method: 'DELETE', headers: { 'api_access_token': cfg.token } });
+    if (r.status === 204 || r.status === 200) {
+      res.json({ success: true });
+      return;
+    }
+    let json: Record<string, unknown> = {};
+    try { json = await r.json() as Record<string, unknown>; } catch {}
+    res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao excluir variante.' });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Editar variante de um produto no EvoAI CRM (proxy) ─────────── */
 app.patch('/api/admin/crm/products/:productId/variants/:variantId', requireAuth, requireAdmin, async (req, res) => {
   const { productId, variantId } = req.params;

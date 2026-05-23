@@ -5408,7 +5408,7 @@
     function renderVariantsPanel(productId, variants) {
       const rows = variants.length
         ? `<div style="border:1px solid var(--border);border-radius:0.5rem;overflow:hidden;margin-bottom:0.65rem">
-            <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 28px;background:var(--bg);padding:0.35rem 0.75rem;border-bottom:1px solid var(--border);gap:0.5rem">
+            <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 56px;background:var(--bg);padding:0.35rem 0.75rem;border-bottom:1px solid var(--border);gap:0.5rem">
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase">Nome</span>
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Preço</span>
               <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Estoque</span>
@@ -5419,15 +5419,21 @@
               const vid = escHtml(String(v.id || ''));
               return `
               <div id="vrow-${productId}-${vid}" style="padding:0.4rem 0.75rem;${i < variants.length - 1 ? 'border-bottom:1px solid var(--border2)' : ''}">
-                <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 28px;gap:0.5rem;align-items:center">
+                <div style="display:grid;grid-template-columns:1fr 88px 72px 80px 56px;gap:0.5rem;align-items:center">
                   <span style="font-size:0.78rem;color:var(--tx1);font-weight:600">${escHtml(v.name || '—')}</span>
                   <span style="font-size:0.75rem;color:#25D366;text-align:right">${v.price_override != null ? 'R$ ' + parseFloat(v.price_override).toFixed(2).replace('.',',') : '—'}</span>
                   <span style="font-size:0.75rem;color:var(--tx3);text-align:right">${v.stock_quantity != null ? v.stock_quantity : '—'}</span>
                   <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">${v.sku ? escHtml(v.sku) : '—'}</span>
-                  <button onclick="openVariantEdit('${productId}','${vid}',${JSON.stringify(escHtml(v.name||''))},${JSON.stringify(escHtml(v.sku||''))},${v.price_override!=null?v.price_override:'null'},${v.stock_quantity!=null?v.stock_quantity:'null'},${v.position!=null?v.position:'null'})"
-                    title="Editar variante"
-                    style="padding:0.2rem 0.3rem;border-radius:0.35rem;border:1px solid var(--border);background:transparent;color:var(--tx3);cursor:pointer;font-size:0.75rem;line-height:1"
-                    onmouseover="this.style.background='rgba(139,92,246,0.1)';this.style.color='#a78bfa'" onmouseout="this.style.background='transparent';this.style.color='var(--tx3)'">✏️</button>
+                  <div style="display:flex;gap:0.25rem">
+                    <button onclick="openVariantEdit('${productId}','${vid}',${JSON.stringify(escHtml(v.name||''))},${JSON.stringify(escHtml(v.sku||''))},${v.price_override!=null?v.price_override:'null'},${v.stock_quantity!=null?v.stock_quantity:'null'},${v.position!=null?v.position:'null'})"
+                      title="Editar variante"
+                      style="padding:0.2rem 0.3rem;border-radius:0.35rem;border:1px solid var(--border);background:transparent;color:var(--tx3);cursor:pointer;font-size:0.75rem;line-height:1"
+                      onmouseover="this.style.background='rgba(139,92,246,0.1)';this.style.color='#a78bfa'" onmouseout="this.style.background='transparent';this.style.color='var(--tx3)'">✏️</button>
+                    <button onclick="deleteVariant('${productId}','${vid}',${JSON.stringify(escHtml(v.name||''))})"
+                      title="Excluir variante"
+                      style="padding:0.2rem 0.3rem;border-radius:0.35rem;border:1px solid var(--border);background:transparent;color:var(--tx3);cursor:pointer;font-size:0.75rem;line-height:1"
+                      onmouseover="this.style.background='rgba(248,113,113,0.1)';this.style.color='#f87171'" onmouseout="this.style.background='transparent';this.style.color='var(--tx3)'">🗑</button>
+                  </div>
                 </div>
                 <div id="vedit-${productId}-${vid}" style="display:none;margin-top:0.5rem"></div>
               </div>`;
@@ -5472,6 +5478,25 @@
             💾 Salvar Variante
           </button>
         </div>`;
+    }
+
+    /* ── Excluir variante do CRM ──────────────────────────────────── */
+    async function deleteVariant(productId, variantId, name) {
+      if (!confirm(`Excluir a variante "${name}" do EvoAI CRM?\n\nEsta ação não pode ser desfeita.`)) return;
+      try {
+        const res  = await fetch(`/api/admin/crm/products/${productId}/variants/${variantId}`, {
+          method : 'DELETE',
+          headers: getAuthHeaders(),
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Variante excluída com sucesso!', 'ok');
+          const row = document.getElementById(`vrow-${productId}-${variantId}`);
+          if (row) row.remove();
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao excluir variante.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro de conexão.', 'err'); }
     }
 
     /* ── Abrir form de edição inline de uma variante ─────────────── */
